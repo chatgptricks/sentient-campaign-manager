@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "lib": ["ES2023", "DOM"],
+    "types": []
+  },
+  "include": [
+    "vite.config.ts",
+    "playwright.config.ts",
+    "playwright.production.config.ts",
+    "vitest.functions.config.ts",
+    "e2e/**/*.ts",
+    "supabase/functions/**/*.ts"
+  ],
+  "exclude": ["supabase/functions/_tests/**/*.ts"]
+}
