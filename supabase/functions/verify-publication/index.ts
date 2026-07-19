@@ -37,7 +37,7 @@ export const handleRequest = functionHandler('verify-publication', async (reques
   if (auth) {
     const { data: publication, error } = await client
       .from('publications')
-      .select('promotion_id,promotions(sales_owner_id,publisher_id)')
+      .select('promotion_id,promotions(sales_owner_id,creator_id)')
       .eq('id', publicationId)
       .maybeSingle();
     if (error) throw databaseError(error, 'Publication access could not be checked.');
@@ -46,11 +46,11 @@ export const handleRequest = functionHandler('verify-publication', async (reques
     const relation = Array.isArray(publication.promotions)
       ? publication.promotions[0]
       : publication.promotions;
-    const promotion = relation as { publisher_id?: string | null; sales_owner_id?: string } | null;
+    const promotion = relation as { creator_id?: string | null; sales_owner_id?: string } | null;
     const canVerify =
       hasRole(auth, 'ADMINISTRATOR') ||
       (hasRole(auth, 'SALES') && promotion?.sales_owner_id === auth.user.id) ||
-      (hasRole(auth, 'PUBLISHER') && promotion?.publisher_id === auth.user.id);
+      (hasRole(auth, 'CREATOR') && promotion?.creator_id === auth.user.id);
     if (!canVerify) throw new HttpError(403, 'FORBIDDEN', 'You cannot verify this publication.');
   }
 

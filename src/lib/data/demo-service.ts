@@ -80,21 +80,21 @@ const profiles: Profile[] = [
     email: 'amina@sentient.agency',
     displayName: 'Amina Okafor',
     status: 'ACTIVE',
-    roles: ['APPROVER'],
+    roles: ['CREATOR'],
   },
   {
     id: ids.publisher,
     email: 'noah@sentient.agency',
     displayName: 'Noah Williams',
     status: 'ACTIVE',
-    roles: ['PUBLISHER'],
+    roles: ['CREATOR'],
   },
   {
     id: ids.finance,
     email: 'sofia@sentient.agency',
     displayName: 'Sofia Rossi',
     status: 'ACTIVE',
-    roles: ['FINANCE'],
+    roles: ['SALES'],
   },
 ];
 
@@ -194,28 +194,12 @@ const publishingAccounts: PublishingAccount[] = [
 
 function allowedActions(status: PromotionStatus): PromotionAction[] {
   const byStatus: Partial<Record<PromotionStatus, PromotionAction[]>> = {
-    DRAFT: [
-      'UPDATE_PROMOTION',
-      'ASSIGN_CREATOR',
-      'ASSIGN_APPROVER',
-      'ATTACH_RESOURCE',
-      'CANCEL_PROMOTION',
-    ],
-    CREATOR_ASSIGNED: [
-      'START_CREATIVE_WORK',
-      'ASSIGN_APPROVER',
-      'ATTACH_RESOURCE',
-      'CANCEL_PROMOTION',
-    ],
-    CREATIVE_IN_PROGRESS: [
-      'ATTACH_RESOURCE',
-      'SUBMIT_FOR_APPROVAL',
-      'ASSIGN_APPROVER',
-      'CANCEL_PROMOTION',
-    ],
+    DRAFT: ['UPDATE_PROMOTION', 'ASSIGN_CREATOR', 'ATTACH_RESOURCE', 'CANCEL_PROMOTION'],
+    CREATOR_ASSIGNED: ['START_CREATIVE_WORK', 'ATTACH_RESOURCE', 'CANCEL_PROMOTION'],
+    CREATIVE_IN_PROGRESS: ['ATTACH_RESOURCE', 'SUBMIT_FOR_APPROVAL', 'CANCEL_PROMOTION'],
     REVISION_REQUESTED: ['START_CREATIVE_WORK', 'ATTACH_RESOURCE', 'CANCEL_PROMOTION'],
     SUBMITTED_FOR_APPROVAL: ['DECIDE_APPROVAL', 'CANCEL_PROMOTION'],
-    APPROVED: ['ASSIGN_PUBLISHER', 'CANCEL_PROMOTION'],
+    APPROVED: ['START_PUBLISHING', 'CANCEL_PROMOTION'],
     PUBLISHER_ASSIGNED: ['START_PUBLISHING', 'CANCEL_PROMOTION'],
     PUBLISHING_IN_PROGRESS: ['RECORD_PUBLICATION', 'CANCEL_PROMOTION'],
     PUBLISHED: ['REQUEST_PUBLICATION_VERIFICATION', 'CANCEL_PROMOTION'],
@@ -224,7 +208,7 @@ function allowedActions(status: PromotionStatus): PromotionAction[] {
     READY_FOR_INVOICING: ['CREATE_INVOICE', 'CANCEL_PROMOTION'],
   };
   const actions = byStatus[status] ?? [];
-  return ['CANCELLED', 'INVOICED'].includes(status) ? actions : ['ASSIGN_SALES_OWNER', ...actions];
+  return actions;
 }
 
 function promotion(
@@ -919,14 +903,14 @@ export const demoCampaignService: CampaignService = {
       item.creatorId = userId;
       item.creatorName = assignee.displayName;
       transition(item, 'CREATOR_ASSIGNED', 'CreatorAssigned');
-    } else if (role === 'APPROVER') {
-      item.approverId = userId;
-      item.approverName = assignee.displayName;
-      transition(item, item.status, 'ApproverAssigned');
-    } else if (role === 'PUBLISHER') {
-      item.publisherId = userId;
-      item.publisherName = assignee.displayName;
-      transition(item, 'PUBLISHER_ASSIGNED', 'PublisherAssigned');
+    } else if (role === 'APPROVER' || role === 'PUBLISHER') {
+      item.creatorId = userId;
+      item.creatorName = assignee.displayName;
+      transition(
+        item,
+        item.status === 'DRAFT' ? 'CREATOR_ASSIGNED' : item.status,
+        'CreatorAssigned',
+      );
     } else {
       item.salesOwnerId = userId;
       item.salesOwnerName = assignee.displayName;
@@ -992,20 +976,20 @@ export const demoCampaignService: CampaignService = {
       item,
       input.decision === 'APPROVED' ? 'APPROVED' : 'REVISION_REQUESTED',
       input.decision === 'APPROVED' ? 'PromotionApproved' : 'PromotionRevisionRequested',
-      'Amina Okafor',
+      item.creatorName ?? 'Creator',
     );
   },
 
   async startPublishing(id, version) {
     const item = findPromotion(id);
     assertVersion(item, version);
-    transition(item, 'PUBLISHING_IN_PROGRESS', 'PublishingStarted', 'Noah Williams');
+    transition(item, 'PUBLISHING_IN_PROGRESS', 'PublishingStarted', item.creatorName ?? 'Creator');
   },
 
   async recordPublication(id, _input: PublicationInput, version) {
     const item = findPromotion(id);
     assertVersion(item, version);
-    transition(item, 'PUBLISHED', 'PublicationRecorded', 'Noah Williams');
+    transition(item, 'PUBLISHED', 'PublicationRecorded', item.creatorName ?? 'Creator');
   },
 
   async requestVerification(publicationId, version) {

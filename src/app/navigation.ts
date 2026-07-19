@@ -29,7 +29,7 @@ export const navigationItems: NavigationItem[] = [
     label: 'Channels',
     to: '/channels',
     icon: Network,
-    roles: ['SALES', 'PUBLISHER'],
+    roles: ['SALES', 'CREATOR'],
   },
   { label: 'Sales', to: '/finance', icon: CircleDollarSign, roles: ['SALES', 'FINANCE'] },
   { label: 'My Work', to: '/my-work', icon: BriefcaseBusiness },

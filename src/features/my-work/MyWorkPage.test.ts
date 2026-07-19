@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { canViewFinanceQueue } from './visibility';
 
 describe('My Work finance queue visibility', () => {
-  it('is visible to Sales, Finance, and higher roles', () => {
-    expect(canViewFinanceQueue(['FINANCE'])).toBe(true);
+  it('is visible to Sales and higher roles', () => {
+    expect(canViewFinanceQueue(['FINANCE'])).toBe(false);
     expect(canViewFinanceQueue(['ADMINISTRATOR'])).toBe(true);
     expect(canViewFinanceQueue(['CREATOR'])).toBe(false);
     expect(canViewFinanceQueue(['SALES'])).toBe(true);

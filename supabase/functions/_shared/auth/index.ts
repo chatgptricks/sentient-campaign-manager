@@ -14,9 +14,9 @@ const roleRank: Record<string, number> = {
   ADMINISTRATOR: 60,
   FINANCE: 50,
   SALES: 40,
-  APPROVER: 30,
+  APPROVER: 20,
   CREATOR: 20,
-  PUBLISHER: 10,
+  PUBLISHER: 20,
 };
 
 function bearerToken(request: Request): string | undefined {

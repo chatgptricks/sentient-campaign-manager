@@ -11,8 +11,6 @@ describe('manual-adapter development workflow', () => {
     });
     const profiles = await demoCampaignService.listProfiles();
     const creator = profiles.find((profile) => profile.roles.includes('CREATOR'))!;
-    const approver = profiles.find((profile) => profile.roles.includes('APPROVER'))!;
-    const publisher = profiles.find((profile) => profile.roles.includes('PUBLISHER'))!;
 
     let promotion = await demoCampaignService.createPromotion({
       clientId: client.id,
@@ -22,8 +20,6 @@ describe('manual-adapter development workflow', () => {
     });
 
     await demoCampaignService.assignRole(promotion.id, 'CREATOR', creator.id, promotion.version);
-    promotion = (await demoCampaignService.getPromotion(promotion.id)).promotion;
-    await demoCampaignService.assignRole(promotion.id, 'APPROVER', approver.id, promotion.version);
     promotion = (await demoCampaignService.getPromotion(promotion.id)).promotion;
     await demoCampaignService.startCreativeWork(promotion.id, promotion.version);
     promotion = (await demoCampaignService.getPromotion(promotion.id)).promotion;
@@ -72,13 +68,6 @@ describe('manual-adapter development workflow', () => {
     detail = await demoCampaignService.getPromotion(promotion.id);
     expect(detail.promotion.status).toBe('APPROVED');
 
-    await demoCampaignService.assignRole(
-      promotion.id,
-      'PUBLISHER',
-      publisher.id,
-      detail.promotion.version,
-    );
-    detail = await demoCampaignService.getPromotion(promotion.id);
     await demoCampaignService.startPublishing(promotion.id, detail.promotion.version);
     detail = await demoCampaignService.getPromotion(promotion.id);
     await demoCampaignService.recordPublication(

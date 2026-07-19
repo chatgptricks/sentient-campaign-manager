@@ -95,7 +95,7 @@ describe('shared edge-function controls', () => {
   });
 
   it('rejects multiple hierarchical roles for one admin user', () => {
-    expect(() => normalizeRoleCodes(['SALES', 'FINANCE'])).toThrowError(HttpError);
+    expect(() => normalizeRoleCodes(['SALES', 'CREATOR'])).toThrowError(HttpError);
   });
 
   it('authorizes edge functions with hierarchical roles', () => {
@@ -104,6 +104,12 @@ describe('shared edge-function controls', () => {
     expect(hasRole(context, 'FINANCE')).toBe(false);
     expect(() => requireAnyRole(context, ['PUBLISHER'])).not.toThrow();
     expect(() => requireAnyRole(context, ['FINANCE'])).toThrowError(HttpError);
+  });
+
+  it('rejects legacy admin role assignment inputs', () => {
+    expect(() => normalizeRoleCodes(['APPROVER'])).toThrowError(HttpError);
+    expect(() => normalizeRoleCodes(['PUBLISHER'])).toThrowError(HttpError);
+    expect(() => normalizeRoleCodes(['FINANCE'])).toThrowError(HttpError);
   });
 
   it('rejects unknown admin roles', () => {

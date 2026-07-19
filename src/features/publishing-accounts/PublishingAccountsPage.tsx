@@ -44,7 +44,7 @@ export function PublishingAccountsPage() {
       <Card>
         <CardHeader
           title={`${accounts.length} channel account${accounts.length === 1 ? '' : 's'}`}
-          description="Channel category, ownership, default publisher, and restrictions are managed centrally."
+          description="Channel category, ownership, default creator, and restrictions are managed centrally."
         />
         <div className="grid gap-px bg-[var(--border)] md:grid-cols-2 xl:grid-cols-3">
           {accounts.map((account) => (
@@ -77,7 +77,7 @@ export function PublishingAccountsPage() {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-[var(--text-dim)]">Default publisher</dt>
+                  <dt className="text-[var(--text-dim)]">Default creator</dt>
                   <dd className="text-right font-medium text-[var(--text-muted)]">
                     {account.defaultPublisherName ?? 'Unassigned'}
                   </dd>

@@ -163,8 +163,6 @@ function OverviewSection({ detail }: { detail: PromotionDetail }) {
   const assignments = [
     { label: 'Campaign owner', name: promotion.salesOwnerName },
     { label: 'Creator', name: promotion.creatorName },
-    { label: 'Approver', name: promotion.approverName },
-    { label: 'Publisher', name: promotion.publisherName },
   ];
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,.6fr)]">
@@ -378,7 +376,7 @@ function ResourcesSection({
                 />
                 {detail.promotion.allowedActions.includes('SUBMIT_FOR_APPROVAL') ? (
                   <Button size="sm" onClick={() => onSubmit(resource.id)}>
-                    Submit for approval <Send className="size-3.5" />
+                    Mark ready for approval <Send className="size-3.5" />
                   </Button>
                 ) : null}
                 {canAttach ? (
@@ -419,7 +417,7 @@ function CreativeSection({
       <Card>
         <CardHeader
           title="Creative production"
-          description="The assigned creator owns the current working cycle and submits an immutable version for review."
+          description="The assigned creator owns production, approval, publication, and verification."
         />
         <CardBody>
           <div className="flex flex-col gap-5 rounded-lg border border-[var(--border)] bg-black/10 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -483,7 +481,7 @@ function CreativeSection({
             {detail.promotion.allowedActions.includes('SUBMIT_FOR_APPROVAL') ? (
               <Button className="mt-5 w-full" onClick={() => onSubmit(latestResource.id)}>
                 <Send className="size-4" />
-                Submit this version
+                Mark ready for approval
               </Button>
             ) : null}
           </CardBody>
@@ -831,7 +829,7 @@ function PublishingSection({
           <EmptyState
             icon={<Send className="size-5" />}
             title="No publication recorded"
-            description="The assigned publisher records the live URL after publishing externally."
+            description="The assigned creator records the live URL after publishing externally."
           />
         )}
       </Card>
@@ -1241,15 +1239,6 @@ export function PromotionDetailPage() {
               Assign creator
             </ActionButton>
             <ActionButton
-              action="ASSIGN_APPROVER"
-              allowed={allowed}
-              variant="secondary"
-              onClick={() => setDialog({ type: 'assign', role: 'APPROVER' })}
-            >
-              <ShieldCheck className="size-4" />
-              Assign approver
-            </ActionButton>
-            <ActionButton
               action="START_CREATIVE_WORK"
               allowed={allowed}
               onClick={() =>
@@ -1261,15 +1250,6 @@ export function PromotionDetailPage() {
             >
               <Play className="size-4" />
               Start creative
-            </ActionButton>
-            <ActionButton
-              action="ASSIGN_PUBLISHER"
-              allowed={allowed}
-              variant="secondary"
-              onClick={() => setDialog({ type: 'assign', role: 'PUBLISHER' })}
-            >
-              <UserRound className="size-4" />
-              Assign publisher
             </ActionButton>
             <ActionButton
               action="START_PUBLISHING"
@@ -1409,7 +1389,7 @@ export function PromotionDetailPage() {
               run({
                 run: () =>
                   campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
-                success: 'Creative submitted for approval.',
+                success: 'Creative marked ready for approval.',
               })
             }
           />
@@ -1427,7 +1407,7 @@ export function PromotionDetailPage() {
               run({
                 run: () =>
                   campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
-                success: 'Creative submitted for approval.',
+                success: 'Creative marked ready for approval.',
               })
             }
           />

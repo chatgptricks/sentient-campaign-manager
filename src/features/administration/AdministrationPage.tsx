@@ -40,13 +40,25 @@ import { MetricCard } from '../../components/ui/MetricCard';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useAuth } from '../auth/AuthProvider';
 
-function RoleSelect({ value, onChange }: { value?: RoleCode; onChange(role: RoleCode): void }) {
+type AssignableRoleCode = (typeof assignableRoleCodes)[number];
+
+function isAssignableRole(role: RoleCode | undefined): role is AssignableRoleCode {
+  return Boolean(role && (assignableRoleCodes as readonly RoleCode[]).includes(role));
+}
+
+function RoleSelect({
+  value,
+  onChange,
+}: {
+  value?: RoleCode;
+  onChange(role: AssignableRoleCode): void;
+}) {
   return (
     <Field label="Application role" htmlFor="application-role">
       <Select
         id="application-role"
         value={value ?? ''}
-        onChange={(event) => onChange(event.target.value as RoleCode)}
+        onChange={(event) => onChange(event.target.value as AssignableRoleCode)}
       >
         <option value="" disabled>
           Select role level
@@ -236,7 +248,9 @@ function ManageUserDialog({
   onOpenChange(open: boolean): void;
   onSaved(): void;
 }) {
-  const [roles, setRoles] = useState<RoleCode[]>(user?.roles ?? []);
+  const [roles, setRoles] = useState<AssignableRoleCode[]>(
+    isAssignableRole(user?.roles[0]) ? [user.roles[0]] : [],
+  );
   const [status, setStatus] = useState<Profile['status']>(user?.status ?? 'ACTIVE');
   const mutation = useMutation({
     mutationFn: async () => {

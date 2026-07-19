@@ -14,7 +14,7 @@ describe('role hierarchy', () => {
     ]);
   });
 
-  it('lets higher roles satisfy lower-role checks', () => {
+  it('lets admin and sales satisfy lower-role checks while legacy production roles alias to creator', () => {
     expect(hasRole(['ADMINISTRATOR'], 'FINANCE')).toBe(true);
     expect(hasRole(['FINANCE'], 'SALES')).toBe(true);
     expect(hasRole(['SALES'], 'APPROVER')).toBe(true);
@@ -25,11 +25,12 @@ describe('role hierarchy', () => {
   it('does not let lower roles satisfy higher-role checks', () => {
     expect(hasRole(['FINANCE'], 'ADMINISTRATOR')).toBe(false);
     expect(hasRole(['SALES'], 'FINANCE')).toBe(false);
-    expect(hasRole(['PUBLISHER'], 'CREATOR')).toBe(false);
+    expect(hasRole(['CREATOR'], 'SALES')).toBe(false);
   });
 
   it('uses hierarchy for multi-role checks', () => {
     expect(hasAnyRole(['SALES'], ['PUBLISHER'])).toBe(true);
-    expect(hasAnyRole(['CREATOR'], ['APPROVER', 'SALES'])).toBe(false);
+    expect(hasAnyRole(['CREATOR'], ['APPROVER', 'PUBLISHER'])).toBe(true);
+    expect(hasAnyRole(['CREATOR'], ['SALES'])).toBe(false);
   });
 });

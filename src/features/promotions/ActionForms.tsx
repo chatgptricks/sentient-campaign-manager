@@ -58,16 +58,16 @@ const assignmentMeta: Record<
     label: 'Creator',
   },
   APPROVER: {
-    title: 'Assign approver',
-    description: 'The approver must be different from the creator who submits the work.',
-    role: 'APPROVER',
-    label: 'Approver',
+    title: 'Assign creator',
+    description: 'Approval is handled by the assigned creator.',
+    role: 'CREATOR',
+    label: 'Creator',
   },
   PUBLISHER: {
-    title: 'Assign publisher',
-    description: 'The publisher receives the approved artifact and records external publication.',
-    role: 'PUBLISHER',
-    label: 'Publisher',
+    title: 'Assign creator',
+    description: 'Publishing is handled by the assigned creator.',
+    role: 'CREATOR',
+    label: 'Creator',
   },
 };
 

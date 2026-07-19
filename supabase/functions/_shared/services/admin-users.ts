@@ -4,14 +4,7 @@ import { getEnv } from '../env.ts';
 import { databaseError, HttpError } from '../errors.ts';
 import { executeIdempotently, recordIntegrationAttempt } from '../idempotency.ts';
 
-const roleOrder = [
-  'ADMINISTRATOR',
-  'FINANCE',
-  'SALES',
-  'APPROVER',
-  'CREATOR',
-  'PUBLISHER',
-] as const;
+const roleOrder = ['ADMINISTRATOR', 'SALES', 'CREATOR'] as const;
 const allowedRoles = new Set<string>(roleOrder);
 const allowedStatuses = new Set(['ACTIVE', 'INVITED', 'SUSPENDED']);
 

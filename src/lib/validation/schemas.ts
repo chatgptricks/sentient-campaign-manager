@@ -143,7 +143,7 @@ export const inviteUserSchema = z.object({
   displayName: z.string().trim().min(2, 'Display name is required.').max(120),
   email: z.email('Enter a valid email address.'),
   roles: z
-    .array(z.enum(['ADMINISTRATOR', 'FINANCE', 'SALES', 'APPROVER', 'CREATOR', 'PUBLISHER']))
+    .array(z.enum(['ADMINISTRATOR', 'SALES', 'CREATOR']))
     .length(1, 'Choose exactly one role level.'),
 });
 

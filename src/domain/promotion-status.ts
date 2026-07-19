@@ -24,7 +24,7 @@ export const promotionStatusLabel: Record<PromotionStatus, string> = {
   SUBMITTED_FOR_APPROVAL: 'Awaiting approval',
   REVISION_REQUESTED: 'Revision requested',
   APPROVED: 'Approved',
-  PUBLISHER_ASSIGNED: 'Publisher assigned',
+  PUBLISHER_ASSIGNED: 'Ready to publish',
   PUBLISHING_IN_PROGRESS: 'Publishing in progress',
   PUBLISHED: 'Published',
   VERIFICATION_PENDING: 'Verification pending',

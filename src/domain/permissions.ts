@@ -12,16 +12,14 @@ export type RoleCode = (typeof roleCodes)[number];
 export const assignableRoleCodes = [
   'ADMINISTRATOR',
   'SALES',
-  'APPROVER',
   'CREATOR',
-  'PUBLISHER',
 ] as const satisfies readonly RoleCode[];
 
 export const roleLabel: Record<RoleCode, string> = {
   SALES: 'Sales',
   CREATOR: 'Creator',
-  APPROVER: 'Approver',
-  PUBLISHER: 'Publisher',
+  APPROVER: 'Creator',
+  PUBLISHER: 'Creator',
   FINANCE: 'Sales',
   ADMINISTRATOR: 'Administrator',
 };
@@ -30,9 +28,9 @@ const roleRank: Record<RoleCode, number> = {
   ADMINISTRATOR: 60,
   FINANCE: 50,
   SALES: 40,
-  APPROVER: 30,
+  APPROVER: 20,
   CREATOR: 20,
-  PUBLISHER: 10,
+  PUBLISHER: 20,
 };
 
 export function hasRole(currentRoles: readonly RoleCode[], allowedRole: RoleCode) {

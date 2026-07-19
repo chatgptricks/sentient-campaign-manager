@@ -2,7 +2,7 @@ import type { Promotion, PromotionDetail } from '../../domain/models';
 
 export function getCurrentOwnerName(promotion: Promotion) {
   if (['SUBMITTED_FOR_APPROVAL', 'APPROVED'].includes(promotion.status)) {
-    return promotion.approverName ?? 'Approver not assigned';
+    return promotion.creatorName ?? 'Creator not assigned';
   }
   if (
     ['CREATOR_ASSIGNED', 'CREATIVE_IN_PROGRESS', 'REVISION_REQUESTED'].includes(promotion.status)
@@ -14,7 +14,7 @@ export function getCurrentOwnerName(promotion: Promotion) {
       promotion.status,
     )
   ) {
-    return promotion.publisherName ?? 'Publisher not assigned';
+    return promotion.creatorName ?? 'Creator not assigned';
   }
   return promotion.salesOwnerName;
 }

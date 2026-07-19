@@ -43,34 +43,32 @@ async function createPayloadNotification(
   const explicitRecipient = payload.recipient_user_id ?? payload.recipientUserId;
   if (typeof explicitRecipient === 'string') recipients.add(explicitRecipient);
   const assignedRecipient = payload.assignedUserId ?? payload.assigned_user_id;
-  const approverRecipient = payload.approverId ?? payload.approver_id;
   if (
     ['CreatorAssigned', 'ApproverAssigned', 'PublisherAssigned'].includes(event.event_type) &&
     typeof assignedRecipient === 'string'
   ) {
     recipients.add(assignedRecipient);
   }
-  if (event.event_type === 'ApprovalSubmitted' && typeof approverRecipient === 'string') {
-    recipients.add(approverRecipient);
-  }
 
   let promotion: {
-    approver_id: string | null;
     creator_id: string | null;
-    publisher_id: string | null;
     sales_owner_id: string;
   } | null = null;
   if (promotionId) {
     const { data, error } = await client
       .from('promotions')
-      .select('sales_owner_id,creator_id,approver_id,publisher_id')
+      .select('sales_owner_id,creator_id')
       .eq('id', promotionId)
       .maybeSingle();
     if (error) throw databaseError(error, 'Promotion notification recipients could not be loaded.');
     promotion = data;
   }
   if (promotion) {
-    if (['PromotionApproved', 'PromotionRevisionRequested'].includes(event.event_type)) {
+    if (
+      ['ApprovalSubmitted', 'PromotionApproved', 'PromotionRevisionRequested'].includes(
+        event.event_type,
+      )
+    ) {
       recipients.add(promotion.sales_owner_id);
       if (promotion.creator_id) recipients.add(promotion.creator_id);
     }
@@ -89,11 +87,11 @@ async function createPayloadNotification(
     }
     if (event.event_type === 'PublicationVerificationFailed') {
       recipients.add(promotion.sales_owner_id);
-      if (promotion.publisher_id) recipients.add(promotion.publisher_id);
+      if (promotion.creator_id) recipients.add(promotion.creator_id);
     }
     if (event.event_type === 'PromotionCancelled') {
       recipients.add(promotion.sales_owner_id);
-      for (const userId of [promotion.creator_id, promotion.approver_id, promotion.publisher_id]) {
+      for (const userId of [promotion.creator_id]) {
         if (userId) recipients.add(userId);
       }
     }
@@ -103,7 +101,7 @@ async function createPayloadNotification(
       .from('user_roles')
       .select('user_id,profiles!inner(status),roles!inner(code)')
       .eq('profiles.status', 'ACTIVE')
-      .in('roles.code', ['SALES', 'FINANCE', 'ADMINISTRATOR']);
+      .in('roles.code', ['SALES', 'ADMINISTRATOR']);
     if (error) throw databaseError(error, 'Finance notification recipients could not be loaded.');
     for (const row of data ?? []) recipients.add(row.user_id);
   }

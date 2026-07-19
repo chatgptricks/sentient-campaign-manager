@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import * as Tabs from '@radix-ui/react-tabs';
-import { ArrowRight, BriefcaseBusiness, CheckCheck, FileCheck2, Send } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, CheckCheck } from 'lucide-react';
 
 import type { Promotion } from '../../domain/models';
 import { hasAnyRole } from '../../domain/permissions';
@@ -71,19 +71,15 @@ export function MyWorkPage() {
   const owned = all.filter(
     (item) => item.salesOwnerId === profile?.id && !['INVOICED', 'CANCELLED'].includes(item.status),
   );
-  const assigned = all.filter(
+  const creatorWork = all.filter(
     (item) =>
       item.creatorId === profile?.id &&
-      ['CREATOR_ASSIGNED', 'CREATIVE_IN_PROGRESS', 'REVISION_REQUESTED'].includes(item.status),
-  );
-  const approvals = all.filter(
-    (item) => item.approverId === profile?.id && item.status === 'SUBMITTED_FOR_APPROVAL',
-  );
-  const publishing = all.filter(
-    (item) =>
-      item.publisherId === profile?.id &&
       [
-        'PUBLISHER_ASSIGNED',
+        'CREATOR_ASSIGNED',
+        'CREATIVE_IN_PROGRESS',
+        'SUBMITTED_FOR_APPROVAL',
+        'REVISION_REQUESTED',
+        'APPROVED',
         'PUBLISHING_IN_PROGRESS',
         'PUBLISHED',
         'VERIFICATION_PENDING',
@@ -99,17 +95,11 @@ export function MyWorkPage() {
       ? [
           {
             value: 'assigned',
-            label: 'Creative assignments',
-            data: assigned,
+            label: 'Creator tasks',
+            data: creatorWork,
             icon: BriefcaseBusiness,
           },
         ]
-      : []),
-    ...(hasAnyRole(roles, ['APPROVER'])
-      ? [{ value: 'approval', label: 'Awaiting approval', data: approvals, icon: FileCheck2 }]
-      : []),
-    ...(hasAnyRole(roles, ['PUBLISHER'])
-      ? [{ value: 'publish', label: 'Ready to publish', data: publishing, icon: Send }]
       : []),
     ...(showFinance
       ? [{ value: 'invoice', label: 'Ready to invoice', data: finance, icon: CheckCheck }]

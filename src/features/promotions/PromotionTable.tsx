@@ -58,16 +58,6 @@ export function PromotionTable({
         cell: (info) =>
           info.getValue() ?? <span className="text-[var(--text-dim)]">Unassigned</span>,
       }),
-      columnHelper.accessor('approverName', {
-        header: 'Approver',
-        cell: (info) =>
-          info.getValue() ?? <span className="text-[var(--text-dim)]">Unassigned</span>,
-      }),
-      columnHelper.accessor('publisherName', {
-        header: 'Publisher',
-        cell: (info) =>
-          info.getValue() ?? <span className="text-[var(--text-dim)]">Unassigned</span>,
-      }),
       columnHelper.accessor('dueDate', {
         header: 'Due date',
         cell: (info) => formatDate(info.getValue()),
