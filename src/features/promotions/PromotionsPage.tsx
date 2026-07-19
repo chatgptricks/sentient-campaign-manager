@@ -1,7 +1,8 @@
 import { useDeferredValue, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Filter, Plus, Search } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { promotionStatuses, promotionStatusLabel } from '../../domain/promotion-status';
 import { hasAnyRole } from '../../domain/permissions';
@@ -18,6 +19,7 @@ import { PromotionTable } from './PromotionTable';
 
 export function PromotionsPage() {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const deferredSearch = useDeferredValue(search);
@@ -26,6 +28,24 @@ export function PromotionsPage() {
     queryKey: ['promotions', profile?.id, deferredSearch, status],
     queryFn: () => campaignService.listPromotions({ search: deferredSearch, status }),
     enabled: Boolean(profile),
+  });
+  const deletePromotion = useMutation({
+    mutationFn: async (promotion: NonNullable<typeof query.data>[number]) => {
+      await campaignService.cancelPromotion(
+        promotion.id,
+        promotion.version,
+        'Deleted from the campaign context menu.',
+      );
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['promotions'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['calendar'] }),
+      ]);
+      toast.success('Campaign deleted from active work.');
+    },
+    onError: (error) => toast.error(getFriendlyError(error)),
   });
 
   return (
@@ -89,6 +109,14 @@ export function PromotionsPage() {
         ) : (
           <PromotionTable
             promotions={query.data ?? []}
+            onDelete={(promotion) => {
+              if (
+                window.confirm(
+                  `Delete "${promotion.title}" from active campaigns? The audit trail will be preserved.`,
+                )
+              )
+                deletePromotion.mutate(promotion);
+            }}
             emptyAction={
               canCreate ? (
                 <Button asChild>

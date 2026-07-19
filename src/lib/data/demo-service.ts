@@ -635,7 +635,7 @@ export const demoCampaignService: CampaignService = {
           !input.search ||
           `${item.title} ${item.clientName}`.toLowerCase().includes(input.search.toLowerCase()),
       )
-      .filter((item) => !input.status || item.status === input.status)
+      .filter((item) => (input.status ? item.status === input.status : item.status !== 'CANCELLED'))
       .map((item) => ({ ...item }));
   },
 
@@ -794,6 +794,13 @@ export const demoCampaignService: CampaignService = {
     const profile = profiles.find((item) => item.id === profileId);
     if (!profile) throw new DomainError({ code: 'NOT_FOUND', message: 'User not found.' });
     profile.status = status;
+  },
+
+  async deleteUser(profileId) {
+    const index = profiles.findIndex((item) => item.id === profileId);
+    if (index < 0) throw new DomainError({ code: 'NOT_FOUND', message: 'User not found.' });
+    const [profile] = profiles.splice(index, 1);
+    if (!profile) throw new DomainError({ code: 'NOT_FOUND', message: 'User not found.' });
   },
 
   async processOutbox() {

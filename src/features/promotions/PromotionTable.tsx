@@ -9,11 +9,22 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Trash2,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import type { Promotion } from '../../domain/models';
 import { formatDate, formatRelativeTime } from '../../lib/utils';
 import { Button } from '../../components/ui/Button';
+import { ContextMenu, type ContextMenuState } from '../../components/ui/ContextMenu';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PromotionStatusBadge } from './PromotionStatusBadge';
 import { getCurrentOwnerName } from './presentation-helpers';
@@ -23,11 +34,14 @@ const columnHelper = createColumnHelper<Promotion>();
 export function PromotionTable({
   promotions,
   emptyAction,
+  onDelete,
 }: {
   promotions: Promotion[];
   emptyAction?: React.ReactNode;
+  onDelete?: (promotion: Promotion) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'updatedAt', desc: true }]);
+  const [menu, setMenu] = useState<(ContextMenuState & { promotion: Promotion }) | null>(null);
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
@@ -134,7 +148,13 @@ export function PromotionTable({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setMenu({ x: event.clientX, y: event.clientY, promotion: row.original });
+                }}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                 ))}
@@ -169,6 +189,67 @@ export function PromotionTable({
           </Button>
         </div>
       </div>
+      <ContextMenu
+        state={menu}
+        onClose={() => setMenu(null)}
+        groups={
+          menu
+            ? [
+                {
+                  items: [
+                    {
+                      label: 'Open campaign',
+                      description: 'Go to the full workflow record.',
+                      icon: <ExternalLink className="size-4" />,
+                      onSelect: () => {
+                        window.location.hash = `#/promotions/${menu.promotion.id}`;
+                      },
+                    },
+                    {
+                      label: 'Copy campaign ID',
+                      description: 'Useful for debugging and audit references.',
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        void navigator.clipboard.writeText(menu.promotion.id);
+                        toast.success('Campaign ID copied.');
+                      },
+                    },
+                    {
+                      label: 'Copy campaign summary',
+                      description: 'Title, client, status, owner, and due date.',
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        const summary = [
+                          menu.promotion.title,
+                          `Client: ${menu.promotion.clientName}`,
+                          `Status: ${menu.promotion.status.replaceAll('_', ' ')}`,
+                          `Owner: ${getCurrentOwnerName(menu.promotion)}`,
+                          `Due: ${formatDate(menu.promotion.dueDate)}`,
+                          `ID: ${menu.promotion.id}`,
+                        ].join('\n');
+                        void navigator.clipboard.writeText(summary);
+                        toast.success('Campaign summary copied.');
+                      },
+                    },
+                  ],
+                },
+                {
+                  items: [
+                    {
+                      label: 'Delete campaign',
+                      description:
+                        'Cancels the campaign and removes it from the active list while preserving audit history.',
+                      icon: <Trash2 className="size-4" />,
+                      danger: true,
+                      disabled: !onDelete || menu.promotion.status === 'CANCELLED',
+                      onSelect: () => onDelete?.(menu.promotion),
+                    },
+                  ],
+                },
+              ]
+            : []
+        }
+      />
     </>
   );
 }

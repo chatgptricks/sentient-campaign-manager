@@ -276,3 +276,39 @@ export async function setProfileStatus(
   if (error) throw databaseError(error, 'Profile status could not be changed.');
   return userSummary(serviceClient, userId);
 }
+
+export async function deleteUser(
+  serviceClient: DatabaseClient,
+  auth: AuthContext,
+  userId: string,
+): Promise<Record<string, unknown>> {
+  if (userId === auth.user.id) {
+    throw new HttpError(400, 'CANNOT_DELETE_SELF', 'Administrators cannot delete themselves.');
+  }
+  const existing = await userSummary(serviceClient, userId);
+  const { error } = await serviceClient.auth.admin.deleteUser(userId);
+  if (!error) {
+    await recordIntegrationAttempt(serviceClient, {
+      aggregateId: userId,
+      idempotencyKey: `admin-user:delete:${userId}:${crypto.randomUUID()}`,
+      operation: 'DELETE_USER',
+      provider: 'SUPABASE_AUTH',
+      requestMetadata: {},
+      responseMetadata: { deleted: true, userId },
+      status: 'SUCCEEDED',
+    });
+    return { ...existing, deleted: true };
+  }
+
+  const suspended = await setProfileStatus(serviceClient, auth, userId, 'SUSPENDED');
+  await recordIntegrationAttempt(serviceClient, {
+    aggregateId: userId,
+    idempotencyKey: `admin-user:delete-fallback:${userId}:${crypto.randomUUID()}`,
+    operation: 'DELETE_USER',
+    provider: 'SUPABASE_AUTH',
+    requestMetadata: {},
+    responseMetadata: { deleted: false, suspended: true, userId },
+    status: 'SUCCEEDED',
+  });
+  return { ...suspended, deleted: false, suspended: true };
+}

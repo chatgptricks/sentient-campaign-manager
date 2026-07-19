@@ -8,12 +8,14 @@ import {
   Cable,
   CircleAlert,
   CircleCheck,
+  Copy,
   KeyRound,
   MailPlus,
   Play,
   RefreshCw,
   Settings2,
   Shield,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -32,6 +34,7 @@ import { formatDateTime } from '../../lib/utils';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
+import { ContextMenu, type ContextMenuState } from '../../components/ui/ContextMenu';
 import { Dialog } from '../../components/ui/Dialog';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Field, Input, Select } from '../../components/ui/Field';
@@ -305,6 +308,7 @@ export function AdministrationPage() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [userMenu, setUserMenu] = useState<(ContextMenuState & { user: Profile }) | null>(null);
   const users = useQuery({
     queryKey: ['profiles', profile?.id],
     queryFn: () => campaignService.listProfiles(),
@@ -339,6 +343,27 @@ export function AdministrationPage() {
       await queryClient.invalidateQueries({ queryKey: ['operations-health'] });
       const notify = result.status === 'UNAVAILABLE' ? toast.error : toast.success;
       notify(`${result.provider}: ${result.message}`);
+    },
+    onError: (error) => toast.error(getFriendlyError(error)),
+  });
+  const setUserStatus = useMutation({
+    mutationFn: ({ user, status }: { user: Profile; status: Profile['status'] }) =>
+      campaignService.setProfileStatus(user.id, status),
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast.success(
+        variables.status === 'SUSPENDED'
+          ? 'User deleted from active access.'
+          : `User marked ${variables.status.toLowerCase()}.`,
+      );
+    },
+    onError: (error) => toast.error(getFriendlyError(error)),
+  });
+  const deleteUser = useMutation({
+    mutationFn: (user: Profile) => campaignService.deleteUser(user.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast.success('User deleted or removed from active access.');
     },
     onError: (error) => toast.error(getFriendlyError(error)),
   });
@@ -415,7 +440,13 @@ export function AdministrationPage() {
                 </thead>
                 <tbody>
                   {users.data?.map((user) => (
-                    <tr key={user.id}>
+                    <tr
+                      key={user.id}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        setUserMenu({ x: event.clientX, y: event.clientY, user });
+                      }}
+                    >
                       <td>
                         <p className="font-semibold text-[var(--text)]">{user.displayName}</p>
                         <p className="mt-1 text-xs text-[var(--text-dim)]">{user.email}</p>
@@ -655,6 +686,89 @@ export function AdministrationPage() {
         open={Boolean(selectedUser)}
         onOpenChange={(open) => !open && setSelectedUser(null)}
         onSaved={() => void users.refetch()}
+      />
+      <ContextMenu
+        state={userMenu}
+        onClose={() => setUserMenu(null)}
+        groups={
+          userMenu
+            ? [
+                {
+                  items: [
+                    {
+                      label: 'Manage user',
+                      description: 'Edit role and account status.',
+                      icon: <Settings2 className="size-4" />,
+                      onSelect: () => setSelectedUser(userMenu.user),
+                    },
+                    {
+                      label: 'Copy email',
+                      description: userMenu.user.email,
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        void navigator.clipboard.writeText(userMenu.user.email);
+                        toast.success('Email copied.');
+                      },
+                    },
+                    {
+                      label: 'Copy user ID',
+                      description: 'Useful for audit and support checks.',
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        void navigator.clipboard.writeText(userMenu.user.id);
+                        toast.success('User ID copied.');
+                      },
+                    },
+                  ],
+                },
+                {
+                  items: [
+                    {
+                      label: 'Activate user',
+                      description: 'Restore login and app access.',
+                      icon: <CircleCheck className="size-4" />,
+                      disabled: userMenu.user.status === 'ACTIVE' || setUserStatus.isPending,
+                      onSelect: () =>
+                        setUserStatus.mutate({ user: userMenu.user, status: 'ACTIVE' }),
+                    },
+                    {
+                      label: 'Suspend user',
+                      description: 'Block access without deleting history.',
+                      icon: <Shield className="size-4" />,
+                      disabled:
+                        userMenu.user.status === 'SUSPENDED' ||
+                        userMenu.user.id === profile?.id ||
+                        setUserStatus.isPending,
+                      onSelect: () => {
+                        if (
+                          window.confirm(
+                            `Suspend ${userMenu.user.displayName}? They will lose access immediately.`,
+                          )
+                        )
+                          setUserStatus.mutate({ user: userMenu.user, status: 'SUSPENDED' });
+                      },
+                    },
+                    {
+                      label: 'Delete user',
+                      description:
+                        'Deletes the Auth user when possible; otherwise suspends access and preserves history.',
+                      icon: <Trash2 className="size-4" />,
+                      danger: true,
+                      disabled: userMenu.user.id === profile?.id || deleteUser.isPending,
+                      onSelect: () => {
+                        if (
+                          window.confirm(
+                            `Delete ${userMenu.user.displayName} from active users? Historical records will be preserved.`,
+                          )
+                        )
+                          deleteUser.mutate(userMenu.user);
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []
+        }
       />
     </div>
   );

@@ -58,6 +58,7 @@ export interface CampaignService {
   }): Promise<void>;
   replaceUserRoles(profileId: string, roles: RoleCode[]): Promise<void>;
   setProfileStatus(profileId: string, status: Profile['status']): Promise<void>;
+  deleteUser(profileId: string): Promise<void>;
   processOutbox(): Promise<{ processed: number }>;
   retryOutboxEvent(eventId: string): Promise<void>;
   testIntegration(provider: string): Promise<IntegrationTestResult>;

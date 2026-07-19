@@ -7,6 +7,7 @@ import { requestIdempotencyKey } from '../_shared/idempotency.ts';
 import { serve } from '../_shared/runtime.ts';
 import {
   createUser,
+  deleteUser,
   inviteUser,
   normalizeEmail,
   replaceUserRoles,
@@ -78,18 +79,23 @@ export const handleRequest = functionHandler('admin-users', async (request) => {
     return jsonResponse(request, result, result.created ? 201 : 200);
   }
 
+  const deleteAction = action === 'delete_user' || action === 'deleteuser';
   const roleAction = action === 'replace_roles' || action === 'replaceroles';
   const statusAction = action === 'set_status' || action === 'setstatus';
-  if (!roleAction && !statusAction) {
+  if (!deleteAction && !roleAction && !statusAction) {
     throw new HttpError(
       400,
       'ADMIN_USER_ACTION_INVALID',
-      'action must be invite, create, replace_roles, or set_status.',
+      'action must be invite, create, delete_user, replace_roles, or set_status.',
     );
   }
 
   const userId = body.userId ?? body.user_id;
   assertUuid(userId, 'userId');
+  if (deleteAction) {
+    const user = await deleteUser(serviceClient, auth, userId);
+    return jsonResponse(request, { user });
+  }
   if (roleAction) {
     const user = await replaceUserRoles(serviceClient, auth, userId, body.roles);
     return jsonResponse(request, { user });

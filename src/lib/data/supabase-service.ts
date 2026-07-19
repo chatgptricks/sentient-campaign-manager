@@ -351,6 +351,7 @@ export const supabaseCampaignService: CampaignService = {
       .order('updated_at', { ascending: false });
 
     if (input.status) query = query.eq('status', input.status);
+    else query = query.neq('status', 'CANCELLED');
 
     const { data, error } = await query;
     assertSuccess(error);
@@ -719,6 +720,14 @@ export const supabaseCampaignService: CampaignService = {
     const { error } = await supabase.functions.invoke('admin-users', {
       body: { action: 'set_status', userId: profileId, status },
       headers: requestHeaders('set-profile-status'),
+    });
+    await assertFunctionSuccess(error);
+  },
+
+  async deleteUser(profileId) {
+    const { error } = await supabase.functions.invoke('admin-users', {
+      body: { action: 'delete_user', userId: profileId },
+      headers: requestHeaders('delete-user'),
     });
     await assertFunctionSuccess(error);
   },
