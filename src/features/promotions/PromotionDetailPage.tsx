@@ -22,6 +22,7 @@ import {
   Plus,
   ReceiptText,
   Send,
+  PartyPopper,
   ShieldCheck,
   UserRound,
   X,
@@ -102,11 +103,12 @@ const workflowStages = [
   { label: 'Approval', statuses: ['SUBMITTED_FOR_APPROVAL', 'APPROVED'] },
   { label: 'Publishing', statuses: ['PUBLISHER_ASSIGNED', 'PUBLISHING_IN_PROGRESS', 'PUBLISHED'] },
   { label: 'Verification', statuses: ['VERIFICATION_PENDING', 'VERIFIED'] },
-  { label: 'Sales', statuses: ['READY_FOR_INVOICING', 'INVOICED'] },
+  { label: 'Sales', statuses: ['READY_FOR_INVOICING', 'INVOICED', 'COMPLETED'] },
 ] as const;
 
 function currentStageIndex(status: string) {
   if (status === 'CANCELLED') return -1;
+  if (status === 'COMPLETED') return workflowStages.length; // past the last stage
   return workflowStages.findIndex((stage) =>
     (stage.statuses as readonly string[]).includes(status),
   );
@@ -1300,6 +1302,20 @@ export function PromotionDetailPage() {
             >
               <ReceiptText className="size-4" />
               Register invoice
+            </ActionButton>
+            <ActionButton
+              action="MARK_COMPLETED"
+              allowed={allowed}
+              onClick={() =>
+                run({
+                  run: () =>
+                    campaignService.completePromotion(promotion.id, promotion.version),
+                  success: 'Promotion marked as completed.',
+                })
+              }
+            >
+              <PartyPopper className="size-4" />
+              Mark as completed
             </ActionButton>
             <ActionButton
               action="CANCEL_PROMOTION"

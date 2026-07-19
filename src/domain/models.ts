@@ -76,7 +76,8 @@ export type PromotionAction =
   | 'REQUEST_PUBLICATION_VERIFICATION'
   | 'RECORD_PUBLICATION_VERIFICATION'
   | 'COMPLETE_VERIFIED_WORKFLOW'
-  | 'CREATE_INVOICE';
+  | 'CREATE_INVOICE'
+  | 'MARK_COMPLETED';
 
 export interface ResourceLink {
   id: string;

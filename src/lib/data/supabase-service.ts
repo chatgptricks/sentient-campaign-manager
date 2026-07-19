@@ -933,6 +933,13 @@ export const supabaseCampaignService: CampaignService = {
     });
   },
 
+  async completePromotion(id: string, version: number) {
+    await callRpc('complete_promotion', {
+      promotion_id: id,
+      expected_version: version,
+    });
+  },
+
   async markNotificationRead(id: string) {
     await callRpc('mark_notification_read', { notification_id: id });
   },

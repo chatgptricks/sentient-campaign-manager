@@ -12,6 +12,7 @@ export const promotionStatuses = [
   'VERIFIED',
   'READY_FOR_INVOICING',
   'INVOICED',
+  'COMPLETED',
   'CANCELLED',
 ] as const;
 
@@ -31,6 +32,7 @@ export const promotionStatusLabel: Record<PromotionStatus, string> = {
   VERIFIED: 'Verified',
   READY_FOR_INVOICING: 'Ready for invoicing',
   INVOICED: 'Invoiced',
+  COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
 };
 
@@ -51,6 +53,7 @@ export const statusTone: Record<
   VERIFIED: 'success',
   READY_FOR_INVOICING: 'attention',
   INVOICED: 'success',
+  COMPLETED: 'success',
   CANCELLED: 'danger',
 };
 
@@ -69,7 +72,8 @@ export const validPromotionTransitions: Readonly<
   VERIFICATION_PENDING: ['VERIFIED', 'CANCELLED'],
   VERIFIED: ['READY_FOR_INVOICING', 'CANCELLED'],
   READY_FOR_INVOICING: ['INVOICED', 'CANCELLED'],
-  INVOICED: [],
+  INVOICED: ['COMPLETED'],
+  COMPLETED: [],
   CANCELLED: [],
 };
 

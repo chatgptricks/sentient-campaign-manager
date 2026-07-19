@@ -44,7 +44,7 @@ export function DashboardPage() {
   }
 
   const total = Object.values(query.data.counts).reduce((sum, count) => sum + (count ?? 0), 0);
-  const active = total - (query.data.counts.INVOICED ?? 0) - (query.data.counts.CANCELLED ?? 0);
+  const active = total - (query.data.counts.INVOICED ?? 0) - (query.data.counts.COMPLETED ?? 0) - (query.data.counts.CANCELLED ?? 0);
   const firstName = profile?.displayName.split(' ')[0] ?? 'there';
   const todayKey = format(startOfToday(), 'yyyy-MM-dd');
   const weekStart = startOfWeek(startOfToday(), { weekStartsOn: 1 });
@@ -151,7 +151,7 @@ export function DashboardPage() {
                   <div className="pb-2">
                     <p className="text-sm font-semibold text-[var(--text)]">active promotions</p>
                     <p className="mt-1 text-xs text-[var(--text-dim)]">
-                      {total} total · {query.data.counts.INVOICED ?? 0} completed
+                      {total} total · {(query.data.counts.INVOICED ?? 0) + (query.data.counts.COMPLETED ?? 0)} completed
                     </p>
                   </div>
                 </div>

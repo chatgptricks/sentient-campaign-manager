@@ -206,6 +206,8 @@ function allowedActions(status: PromotionStatus): PromotionAction[] {
     VERIFICATION_PENDING: ['RECORD_PUBLICATION_VERIFICATION', 'CANCEL_PROMOTION'],
     VERIFIED: ['COMPLETE_VERIFIED_WORKFLOW', 'CANCEL_PROMOTION'],
     READY_FOR_INVOICING: ['CREATE_INVOICE', 'CANCEL_PROMOTION'],
+    INVOICED: ['MARK_COMPLETED'],
+    COMPLETED: [],
   };
   const actions = byStatus[status] ?? [];
   return actions;
@@ -656,7 +658,7 @@ export const demoCampaignService: CampaignService = {
         (item) =>
           item.dueDate &&
           new Date(item.dueDate) < now &&
-          !['INVOICED', 'CANCELLED'].includes(item.status),
+          !['INVOICED', 'COMPLETED', 'CANCELLED'].includes(item.status),
       ),
       recentActivity: activity.slice(0, 8),
       myAssignments: promotions.filter((item) =>
@@ -1095,6 +1097,15 @@ export const demoCampaignService: CampaignService = {
       `Invoice${status}`,
       'Sofia Rossi',
     );
+  },
+
+  async completePromotion(id, version) {
+    const item = findPromotion(id);
+    assertVersion(item, version);
+    if (item.status !== 'INVOICED') {
+      throw new DomainError({ code: 'PROMOTION_INVALID_STATUS', message: 'Promotion must be invoiced to complete.' });
+    }
+    transition(item, 'COMPLETED', 'PromotionCompleted', 'Sofia Rossi');
   },
 
   async markNotificationRead(id) {

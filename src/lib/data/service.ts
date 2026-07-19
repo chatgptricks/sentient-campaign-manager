@@ -94,6 +94,7 @@ export interface CampaignService {
     version: number,
     invoiceNumber?: string,
   ): Promise<void>;
+  completePromotion(id: string, version: number): Promise<void>;
   markNotificationRead(id: string): Promise<void>;
   attachPrivateAsset(
     promotionId: string,
