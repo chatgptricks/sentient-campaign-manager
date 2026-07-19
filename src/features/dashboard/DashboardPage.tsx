@@ -186,12 +186,6 @@ export function DashboardPage() {
                   <Megaphone className="size-4" />
                 </div>
               </div>
-              <div className="mt-6 rounded-lg border border-[var(--border)] bg-white/35 px-4 py-3">
-                <p className="text-xs leading-5 text-[var(--text-muted)]">
-                  Read this as a queue map: higher numbers mean more campaigns are sitting in that
-                  stage right now.
-                </p>
-              </div>
               <div className="mt-6 divide-y divide-[var(--border)]">
                 {workflowSegments.map((segment) => (
                   <div
