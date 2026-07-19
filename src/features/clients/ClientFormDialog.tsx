@@ -46,6 +46,13 @@ export function ClientFormDialog({
     mutationFn: (input: ClientInput) =>
       client ? campaignService.updateClient(client.id, input) : campaignService.createClient(input),
     onSuccess: async (savedClient) => {
+      queryClient.setQueriesData<Client[]>({ queryKey: ['clients'] }, (current) => {
+        if (!current) return [savedClient];
+        const withoutDuplicate = current.filter((item) => item.id !== savedClient.id);
+        return [...withoutDuplicate, savedClient].sort((left, right) =>
+          left.name.localeCompare(right.name),
+        );
+      });
       await queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success(`${savedClient.name} was ${client ? 'updated' : 'added'}.`);
       form.reset();
