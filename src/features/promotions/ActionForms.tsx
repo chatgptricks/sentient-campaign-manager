@@ -479,6 +479,10 @@ export function PublicationDialog({
   ...props
 }: ControlledDialogProps & { resources: ResourceLink[]; onSubmit(input: PublicationInput): void }) {
   const defaultPublishedAt = useMemo(() => toLocalDateTimeInputValue(new Date()), []);
+  const defaultArtifactResourceLinkId = useMemo(
+    () => resources.find((item) => !item.archivedAt)?.id ?? '',
+    [resources],
+  );
   const form = useForm<PublicationInput>({
     resolver: zodResolver(publicationSchema),
     defaultValues: {
@@ -486,10 +490,15 @@ export function PublicationDialog({
       destination: '',
       publicationUrl: '',
       externalPublicationId: '',
-      artifactResourceLinkId: resources[0]?.id ?? '',
+      artifactResourceLinkId: defaultArtifactResourceLinkId,
       publishedAt: defaultPublishedAt,
     },
   });
+
+  useEffect(() => {
+    form.setValue('artifactResourceLinkId', defaultArtifactResourceLinkId);
+  }, [defaultArtifactResourceLinkId, form]);
+
   return (
     <Dialog
       open={props.open}
@@ -556,22 +565,7 @@ export function PublicationDialog({
             <Input id="external-publication-id" {...form.register('externalPublicationId')} />
           </Field>
         </div>
-        <Field
-          label="Approved artifact"
-          htmlFor="publication-artifact"
-          error={form.formState.errors.artifactResourceLinkId?.message}
-        >
-          <Select id="publication-artifact" {...form.register('artifactResourceLinkId')}>
-            <option value="">Choose an artifact</option>
-            {resources
-              .filter((item) => !item.archivedAt)
-              .map((resource) => (
-                <option key={resource.id} value={resource.id}>
-                  {resource.displayName}
-                </option>
-              ))}
-          </Select>
-        </Field>
+        <input type="hidden" {...form.register('artifactResourceLinkId')} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => props.onOpenChange(false)}>
             Cancel
