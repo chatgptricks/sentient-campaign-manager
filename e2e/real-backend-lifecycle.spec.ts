@@ -97,13 +97,13 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await sales.page.getByLabel('Billing email').fill(`billing-${suffix}@example.com`);
   await sales.page.getByRole('button', { name: 'Add client', exact: true }).last().click();
   await expect(sales.page.getByText(`${clientName} was added.`)).toBeVisible();
-  await sales.page.getByLabel('Campaign name').fill(title);
+  await sales.page.getByLabel('Promotion name').fill(title);
   await sales.page
     .getByLabel('Description')
     .fill('A database-backed workflow test from sales intake through invoicing.');
   const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await sales.page.getByLabel('Due date').fill(dueDate);
-  await sales.page.getByRole('button', { name: 'Create campaign' }).click();
+  await sales.page.getByRole('button', { name: 'Create promotion' }).click();
   await expect(sales.page.getByRole('heading', { name: title })).toBeVisible();
   const promotionHash = new URL(sales.page.url()).hash;
 
@@ -170,7 +170,6 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await creator.page
     .getByLabel('Publication URL')
     .fill(`https://www.instagram.com/p/e2e-${suffix}`);
-  await creator.page.getByLabel('Approved artifact').selectOption({ label: 'E2E creative v2' });
   await creator.page.getByRole('button', { name: 'Record publication' }).last().click();
   await expect(creator.page.getByText('Published', { exact: true })).toBeVisible();
 

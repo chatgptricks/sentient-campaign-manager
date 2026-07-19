@@ -13,12 +13,12 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
 
   await page.getByRole('link', { name: 'New promotion' }).click();
   await page.getByLabel('Client', { exact: true }).selectOption({ label: 'Arcadia Hotels' });
-  await page.getByLabel('Campaign name').fill('E2E verified launch');
+  await page.getByLabel('Promotion name').fill('E2E verified launch');
   await page
     .getByLabel('Description')
     .fill('A complete workflow test from sales intake through invoicing.');
   await page.getByLabel('Due date').fill('2026-08-15');
-  await page.getByRole('button', { name: 'Create campaign' }).click();
+  await page.getByRole('button', { name: 'Create promotion' }).click();
   await expect(page.getByRole('heading', { name: 'E2E verified launch' })).toBeVisible();
   await expect(page.getByText('Draft', { exact: true })).toBeVisible();
 
@@ -65,7 +65,6 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await page.getByRole('button', { name: 'Record publication' }).click();
   await page.getByLabel('Destination').fill('@e2e_client');
   await page.getByLabel('Publication URL').fill('https://www.instagram.com/p/e2e-verified');
-  await page.getByLabel('Approved artifact').selectOption({ label: 'E2E creative v2' });
   await page.getByRole('button', { name: 'Record publication' }).last().click();
   await expect(page.getByText('Published', { exact: true })).toBeVisible();
 

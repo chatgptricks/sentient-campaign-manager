@@ -6,7 +6,7 @@ test.skip(!process.env.PRODUCTION_SMOKE_URL, 'Runs only after a production deplo
 test('renders the deployed Auth boundary and static assets', async ({ page }) => {
   const response = await page.goto('./#/dashboard');
   expect(response?.ok()).toBe(true);
-  await expect(page.getByRole('heading', { name: 'Sign in to Campaign Manager' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sign in to Promotion Manager' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Sentient' }).first()).toBeVisible();
   await expect(page.getByLabel('Email')).toBeVisible();
 });
