@@ -14,13 +14,13 @@ describe('promotion state machine presentation mirror', () => {
   it('rejects shortcuts and terminal-state changes', () => {
     expect(isValidTransition('DRAFT', 'APPROVED')).toBe(false);
     expect(isValidTransition('APPROVED', 'INVOICED')).toBe(false);
-    expect(validPromotionTransitions.INVOICED).toEqual([]);
+    expect(validPromotionTransitions.COMPLETED).toEqual([]);
     expect(validPromotionTransitions.CANCELLED).toEqual([]);
   });
 
   it('allows cancellation only from non-terminal states', () => {
     for (const [status, transitions] of Object.entries(validPromotionTransitions)) {
-      if (status === 'INVOICED' || status === 'CANCELLED') {
+      if (['INVOICED', 'COMPLETED', 'CANCELLED'].includes(status)) {
         expect(transitions).not.toContain('CANCELLED');
       } else {
         expect(transitions).toContain('CANCELLED');

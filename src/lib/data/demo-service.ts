@@ -16,7 +16,7 @@ import type {
 } from '../../domain/models';
 import { DomainError } from '../../domain/errors';
 import type { PromotionStatus } from '../../domain/promotion-status';
-import type { RoleCode } from '../../domain/permissions';
+import { hasRole, type RoleCode } from '../../domain/permissions';
 import type {
   ApprovalDecisionInput,
   CampaignMetadataInput,
@@ -804,7 +804,7 @@ export const demoCampaignService: CampaignService = {
 
   async listProfiles(role?: RoleCode) {
     return profiles
-      .filter((profile) => !role || profile.roles.includes(role))
+      .filter((profile) => !role || hasRole(profile.roles, role))
       .map((profile) => ({ ...profile }));
   },
 

@@ -16,7 +16,7 @@ import type {
   ResourceLink,
 } from '../../domain/models';
 import { promotionStatuses, type PromotionStatus } from '../../domain/promotion-status';
-import type { RoleCode } from '../../domain/permissions';
+import { hasRole, type RoleCode } from '../../domain/permissions';
 import { DomainError } from '../../domain/errors';
 import { supabase } from '../supabase/client';
 import type {
@@ -616,7 +616,7 @@ export const supabaseCampaignService: CampaignService = {
       };
     });
     return role
-      ? profiles.filter((profile) => profile.status === 'ACTIVE' && profile.roles.includes(role))
+      ? profiles.filter((profile) => profile.status === 'ACTIVE' && hasRole(profile.roles, role))
       : profiles;
   },
 
