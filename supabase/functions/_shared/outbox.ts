@@ -97,41 +97,130 @@ async function createPayloadNotification(
     }
   }
   if (event.event_type === 'PromotionReadyForInvoicing') {
-    const { data, error } = await client
-      .from('user_roles')
-      .select('user_id,profiles!inner(status),roles!inner(code)')
-      .eq('profiles.status', 'ACTIVE')
-      .in('roles.code', ['SALES', 'ADMINISTRATOR']);
+    const { data, error } = await client.from('user_roles').select('user_id, roles(code)');
     if (error) throw databaseError(error, 'Finance notification recipients could not be loaded.');
-    for (const row of data ?? []) recipients.add(row.user_id);
+    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+      const relation = row.roles;
+      const values = Array.isArray(relation) ? relation : [relation];
+      for (const val of values) {
+        if (val && typeof val === 'object' && 'code' in val) {
+          const code = String((val as { code: unknown }).code).toUpperCase();
+          if (['SALES', 'ADMINISTRATOR'].includes(code) && typeof row.user_id === 'string') {
+            recipients.add(row.user_id);
+          }
+        }
+      }
+    }
   }
   if (recipients.size === 0) return { handled: false, reason: 'NO_REGISTERED_EFFECT' };
+
+  let promotionTitle = 'Promotion';
+  let promoUrl = '';
+  if (promotionId) {
+    const { data: promoData } = await client
+      .from('promotions')
+      .select('title')
+      .eq('id', promotionId)
+      .maybeSingle();
+    if (promoData?.title) promotionTitle = promoData.title;
+    promoUrl = `https://chatgptricks.github.io/sentient-campaign-manager/#/promotions/${promotionId}`;
+  }
+
+  let actorName = 'Someone';
+  const actorId = payload.actor_id ?? payload.actorId;
+  if (typeof actorId === 'string') {
+    const { data: actorProfile } = await client
+      .from('profiles')
+      .select('display_name')
+      .eq('id', actorId)
+      .maybeSingle();
+    if (actorProfile?.display_name) actorName = actorProfile.display_name;
+  }
+
+  let body = typeof payload.body === 'string' ? payload.body : '';
+  if (!body) {
+    const titleLink = promoUrl ? `<${promoUrl}|*${promotionTitle}*>` : `*${promotionTitle}*`;
+    switch (event.event_type) {
+      case 'CreatorAssigned':
+      case 'ApproverAssigned':
+      case 'PublisherAssigned': {
+        const assignedId = payload.assignedUserId ?? payload.assigned_user_id;
+        let assigneeTag = 'someone';
+        if (typeof assignedId === 'string') {
+          const { data: assigneeProfile } = await client
+            .from('profiles')
+            .select('display_name, slack_user_id')
+            .eq('id', assignedId)
+            .maybeSingle();
+          if (assigneeProfile?.slack_user_id) {
+            assigneeTag = `<@${assigneeProfile.slack_user_id}>`;
+          } else if (assigneeProfile?.display_name) {
+            assigneeTag = assigneeProfile.display_name;
+          }
+        }
+        body = `${actorName} assigned ${titleLink} to ${assigneeTag}.`;
+        break;
+      }
+      case 'CreativeWorkStarted':
+        body = `${actorName} started creative work on ${titleLink}.`;
+        break;
+      case 'ApprovalSubmitted':
+        body = `${actorName} submitted ${titleLink} for approval.`;
+        break;
+      case 'PromotionApproved':
+        body = `${actorName} approved ${titleLink}.`;
+        break;
+      case 'PromotionRevisionRequested':
+        body = `${actorName} requested revision for ${titleLink}.`;
+        break;
+      case 'PublicationRecorded':
+        body = `${actorName} recorded publication for ${titleLink}.`;
+        break;
+      case 'PublicationVerificationRequested':
+        body = `${actorName} requested publication verification for ${titleLink}.`;
+        break;
+      case 'PublicationVerified':
+        body = `Publication verified for ${titleLink}.`;
+        break;
+      case 'InvoiceIssued':
+        body = `${actorName} issued an invoice for ${titleLink}.`;
+        break;
+      case 'InvoicePaid':
+        body = `Invoice paid for ${titleLink}.`;
+        break;
+      case 'PromotionCompleted':
+        body = `${actorName} marked ${titleLink} as completed.`;
+        break;
+      case 'PromotionCancelled':
+        body = `${actorName} cancelled ${titleLink}.`;
+        break;
+      default:
+        body = `${actorName} updated ${titleLink}.`;
+        break;
+    }
+  }
 
   const subject =
     typeof payload.subject === 'string'
       ? payload.subject
       : event.event_type.replace(/([a-z])([A-Z])/g, '$1 $2');
-  const body =
-    typeof payload.body === 'string'
-      ? payload.body
-      : 'A promotion you are involved with has new activity.';
   const notificationType = `${event.event_type}:${event.id}`;
   const notificationIds: string[] = [];
+
   for (const userId of recipients) {
-    const { data: existing, error: existingError } = await client
+    const { data: existing } = await client
       .from('notifications')
       .select('id')
       .eq('user_id', userId)
       .eq('type', notificationType)
       .limit(1)
       .maybeSingle();
-    if (existingError) {
-      throw databaseError(existingError, 'Outbox notification idempotency could not be checked.');
-    }
+
     if (existing) {
       notificationIds.push(existing.id);
       continue;
     }
+
     const { data, error } = await client
       .from('notifications')
       .insert({
@@ -146,8 +235,32 @@ async function createPayloadNotification(
       })
       .select('id')
       .single();
+
     if (error) throw databaseError(error, 'Outbox notification could not be created.');
     notificationIds.push(data.id);
+
+    // If SLACK_BOT_TOKEN is present in env, dispatch Slack notification to channel & user DM
+    const botToken = Deno.env.get('SLACK_BOT_TOKEN');
+    if (botToken) {
+      try {
+        const { data: profile } = await client
+          .from('profiles')
+          .select('slack_user_id')
+          .eq('id', userId)
+          .maybeSingle();
+
+        const slackAdapter = new SlackNotificationAdapter(fetch, botToken);
+        await slackAdapter.send({
+          body,
+          channel: 'SLACK',
+          idempotencyKey: `outbox:${event.id}:slack:${userId}`,
+          recipient: profile?.slack_user_id ?? undefined,
+          subject,
+        });
+      } catch (slackErr) {
+        console.error(`Slack dispatch error for user ${userId}:`, slackErr);
+      }
+    }
   }
   return { handled: true, notificationIds };
 }

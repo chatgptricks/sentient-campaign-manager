@@ -80,50 +80,71 @@ export class ResendNotificationAdapter implements NotificationAdapter {
 export class SlackNotificationAdapter implements NotificationAdapter {
   readonly provider = 'SLACK';
   readonly configured: boolean;
+  private readonly trackingChannelId: string;
 
   constructor(
     private readonly fetcher: typeof fetch = fetch,
     private readonly botToken = getEnv('SLACK_BOT_TOKEN'),
-    private readonly channelId = getEnv('SLACK_CHANNEL_ID'),
+    channelId = getEnv('SLACK_CHANNEL_ID'),
   ) {
-    this.configured = Boolean(botToken && channelId);
+    this.trackingChannelId = channelId || 'C0BJ627G19R';
+    this.configured = Boolean(botToken);
   }
 
   async send(message: NotificationMessage): Promise<NotificationDeliveryResult> {
-    if (!this.configured || !this.botToken || !this.channelId) {
+    if (!this.configured || !this.botToken) {
       return new ManualNotificationAdapter().send(message);
     }
-    const digest = new Uint8Array(
-      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message.idempotencyKey)),
-    );
-    digest[6] = (digest[6]! & 0x0f) | 0x50;
-    digest[8] = (digest[8]! & 0x3f) | 0x80;
-    const hex = [...digest.slice(0, 16)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    const clientMessageId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+
+    const text = message.body;
+    let ts: string | undefined;
+
+    // 1. Send activity log line to global tracking channel C0BJ627G19R
+    ts = await this.postSlackMessage(this.trackingChannelId, text);
+
+    // 2. If recipient is a direct Slack User ID (starts with U) and different from tracking channel, send DM
+    if (
+      message.recipient &&
+      message.recipient.startsWith('U') &&
+      message.recipient !== this.trackingChannelId
+    ) {
+      const userDmTs = await this.postSlackMessage(message.recipient, text);
+      ts = ts || userDmTs;
+    }
+
+    return {
+      delivered: true,
+      externalId: ts,
+      message: 'Slack notification posted successfully.',
+      mode: 'PROVIDER',
+      status: 'SENT',
+    };
+  }
+
+  private async postSlackMessage(channel: string, text: string): Promise<string | undefined> {
     const response = await this.fetcher('https://slack.com/api/chat.postMessage', {
       method: 'POST',
-      redirect: 'error',
       headers: {
         Authorization: `Bearer ${this.botToken}`,
         'Content-Type': 'application/json; charset=utf-8',
       },
       body: JSON.stringify({
-        channel: this.channelId,
-        client_msg_id: clientMessageId,
-        text: `*${message.subject}*\n${message.body}`,
+        channel,
+        text,
+        unfurl_links: false,
+        unfurl_media: false,
       }),
     });
-    const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; ts?: string };
+    const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; ts?: string; error?: string };
     if (!response.ok || !payload.ok) {
-      throw new HttpError(502, 'SLACK_PROVIDER_ERROR', `Slack returned HTTP ${response.status}.`);
+      console.error(`Slack postMessage to ${channel} failed: ${payload.error ?? response.status}`);
+      throw new HttpError(
+        502,
+        'SLACK_PROVIDER_ERROR',
+        `Slack returned error '${payload.error ?? response.status}' for channel ${channel}.`,
+      );
     }
-    return {
-      delivered: true,
-      externalId: payload.ts,
-      message: 'Slack accepted the notification.',
-      mode: 'PROVIDER',
-      status: 'SENT',
-    };
+    return payload.ts;
   }
 }
 

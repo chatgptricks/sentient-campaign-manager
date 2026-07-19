@@ -69,15 +69,18 @@ export async function sendNotificationRecord(
     idempotencyKey,
     async () => {
       let recipient: string | undefined;
+      const { data: profile, error: profileError } = await client
+        .from('profiles')
+        .select('email, slack_user_id')
+        .eq('id', notification.user_id)
+        .maybeSingle();
+      if (profileError)
+        throw databaseError(profileError, 'Notification recipient could not be loaded.');
+
       if (notification.channel === 'EMAIL') {
-        const { data: profile, error: profileError } = await client
-          .from('profiles')
-          .select('email')
-          .eq('id', notification.user_id)
-          .maybeSingle();
-        if (profileError)
-          throw databaseError(profileError, 'Notification recipient could not be loaded.');
         recipient = profile?.email;
+      } else if (notification.channel === 'SLACK') {
+        recipient = profile?.slack_user_id ?? undefined;
       }
 
       try {
