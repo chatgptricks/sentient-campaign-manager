@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,11 +30,6 @@ export function CreatePromotionPage() {
     queryFn: () => campaignService.listClients(),
     enabled: Boolean(profile),
   });
-  const salesQuery = useQuery({
-    queryKey: ['profiles', profile?.id, 'SALES'],
-    queryFn: () => campaignService.listProfiles('SALES'),
-    enabled: Boolean(profile),
-  });
   const accountsQuery = useQuery({
     queryKey: ['publishing-accounts', profile?.id],
     queryFn: () => campaignService.listPublishingAccounts(),
@@ -48,7 +42,6 @@ export function CreatePromotionPage() {
       title: '',
       description: '',
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(calendarDueDate) ? calendarDueDate : '',
-      salesOwnerId: '',
       metadata: {
         campaignType: 'Social campaign',
         scheduledDate: /^\d{4}-\d{2}-\d{2}$/.test(calendarDueDate) ? calendarDueDate : '',
@@ -64,12 +57,6 @@ export function CreatePromotionPage() {
     },
   });
 
-  useEffect(() => {
-    if (!form.getValues('salesOwnerId') && profile?.roles.includes('SALES')) {
-      form.setValue('salesOwnerId', profile.id);
-    }
-  }, [form, profile]);
-
   const mutation = useMutation({
     mutationFn: campaignService.createPromotion,
     onSuccess: async (promotion) => {
@@ -80,15 +67,14 @@ export function CreatePromotionPage() {
     onError: (error) => toast.error(getFriendlyError(error)),
   });
 
-  if (clientsQuery.isLoading || salesQuery.isLoading || accountsQuery.isLoading)
+  if (clientsQuery.isLoading || accountsQuery.isLoading)
     return <LoadingState label="Preparing promotion form" />;
-  if (clientsQuery.error || salesQuery.error || accountsQuery.error) {
+  if (clientsQuery.error || accountsQuery.error) {
     return (
       <ErrorState
-        message={getFriendlyError(clientsQuery.error ?? salesQuery.error ?? accountsQuery.error)}
+        message={getFriendlyError(clientsQuery.error ?? accountsQuery.error)}
         retry={() => {
           void clientsQuery.refetch();
-          void salesQuery.refetch();
           void accountsQuery.refetch();
         }}
       />
@@ -188,24 +174,6 @@ export function CreatePromotionPage() {
                   aria-invalid={Boolean(form.formState.errors.dueDate)}
                   {...form.register('dueDate')}
                 />
-              </Field>
-              <Field
-                label="Sales owner"
-                htmlFor="promotion-sales-owner"
-                error={form.formState.errors.salesOwnerId?.message}
-              >
-                <Select
-                  id="promotion-sales-owner"
-                  aria-invalid={Boolean(form.formState.errors.salesOwnerId)}
-                  {...form.register('salesOwnerId')}
-                >
-                  <option value="">Choose an owner</option>
-                  {salesQuery.data?.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.displayName}
-                    </option>
-                  ))}
-                </Select>
               </Field>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">

@@ -18,7 +18,6 @@ describe('workflow form validation', () => {
         title: 'Summer launch',
         description: '',
         dueDate: '2026-07-30',
-        salesOwnerId: validUuid,
       }).success,
     ).toBe(true);
     expect(
@@ -27,7 +26,6 @@ describe('workflow form validation', () => {
         title: '',
         description: '',
         dueDate: '',
-        salesOwnerId: '',
       }).success,
     ).toBe(false);
   });

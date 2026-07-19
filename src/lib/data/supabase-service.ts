@@ -783,7 +783,6 @@ export const supabaseCampaignService: CampaignService = {
         title: input.title,
         description: input.description || null,
         due_date: input.dueDate || null,
-        sales_owner_id: input.salesOwnerId,
       },
     });
     const promotion = mapPromotion(data);

@@ -10,7 +10,6 @@ describe('manual-adapter development workflow', () => {
       billingAddress: 'Test address',
     });
     const profiles = await demoCampaignService.listProfiles();
-    const sales = profiles.find((profile) => profile.roles.includes('SALES'))!;
     const creator = profiles.find((profile) => profile.roles.includes('CREATOR'))!;
     const approver = profiles.find((profile) => profile.roles.includes('APPROVER'))!;
     const publisher = profiles.find((profile) => profile.roles.includes('PUBLISHER'))!;
@@ -20,7 +19,6 @@ describe('manual-adapter development workflow', () => {
       title: 'Lifecycle test promotion',
       description: 'Exercises every internal workflow command.',
       dueDate: '2026-08-01',
-      salesOwnerId: sales.id,
     });
 
     await demoCampaignService.assignRole(promotion.id, 'CREATOR', creator.id, promotion.version);
@@ -135,13 +133,11 @@ describe('manual-adapter development workflow', () => {
       billingEmail: '',
       billingAddress: '',
     });
-    const sales = (await demoCampaignService.listProfiles('SALES'))[0]!;
     const promotion = await demoCampaignService.createPromotion({
       clientId: client.id,
       title: 'Metadata test campaign',
       description: 'Structured planning metadata should survive the create flow.',
       dueDate: '2026-08-02',
-      salesOwnerId: sales.id,
       metadata: {
         campaignType: 'Product launch',
         scheduledDate: '2026-08-03',

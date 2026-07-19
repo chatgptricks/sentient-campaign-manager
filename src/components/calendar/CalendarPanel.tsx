@@ -251,7 +251,7 @@ function CalendarViewContent({
           <p className="px-4 py-6 text-sm text-[var(--text-muted)]">
             {addHrefForDate
               ? 'Select this date when creating a promotion, or choose another day.'
-              : 'Finance events will appear here when invoices are created.'}
+              : 'Sales events will appear here when invoices are created.'}
           </p>
         )}
       </div>
@@ -299,7 +299,7 @@ function CalendarViewContent({
               onClick={() => setContextMenu(null)}
               className="block w-full rounded-md px-3 py-2 text-left text-sm text-[var(--text)] hover:bg-[var(--surface-hover)]"
             >
-              View finance items for this date
+              View sales items for this date
             </button>
           ) : null}
         </div>
@@ -332,7 +332,7 @@ export function CalendarWorkspace({ views }: CalendarWorkspaceProps) {
             Operations calendar
           </span>
         }
-        description="Switch between posting planning and restricted finance milestones."
+        description="Switch between posting planning and restricted sales milestones."
       />
       <div
         role="tablist"

@@ -22,7 +22,7 @@ export function FinancePage() {
     enabled: Boolean(profile) && canViewFinanceQueue(profile?.roles ?? []),
   });
 
-  if (query.isLoading) return <LoadingState label="Loading finance" />;
+  if (query.isLoading) return <LoadingState label="Loading sales" />;
   if (query.error) {
     return (
       <ErrorState message={getFriendlyError(query.error)} retry={() => void query.refetch()} />
@@ -41,17 +41,15 @@ export function FinancePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Protected finance workspace"
-        title="Finance"
-        description="Invoice and payment milestones are isolated from campaign users and available only to authorized roles."
+        eyebrow="Sales workspace"
+        title="Sales"
+        description="Invoice and payment milestones for verified campaigns."
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardBody>
             <CircleDollarSign className="size-5 text-[var(--acid-ink)]" />
-            <p className="mt-5 text-xs font-semibold text-[var(--text-dim)]">
-              Tracked finance items
-            </p>
+            <p className="mt-5 text-xs font-semibold text-[var(--text-dim)]">Tracked sales items</p>
             <p className="mt-2 text-3xl font-semibold text-[var(--text)]">{financeEvents.length}</p>
           </CardBody>
         </Card>
@@ -67,7 +65,7 @@ export function FinancePage() {
         <Card>
           <CardBody>
             <p className="text-xs font-semibold text-[var(--text-dim)]">Access boundary</p>
-            <p className="mt-2 text-sm font-semibold text-[var(--text)]">Finance + Administrator</p>
+            <p className="mt-2 text-sm font-semibold text-[var(--text)]">Sales + Administrator</p>
             <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
               Amounts, invoice dates, and payment status remain hidden from other roles.
             </p>
@@ -107,7 +105,7 @@ export function FinancePage() {
           </div>
         ) : (
           <CardBody>
-            <p className="text-sm text-[var(--text-muted)]">No finance reminders yet.</p>
+            <p className="text-sm text-[var(--text-muted)]">No sales reminders yet.</p>
           </CardBody>
         )}
       </Card>

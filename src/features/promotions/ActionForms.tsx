@@ -46,10 +46,10 @@ const assignmentMeta: Record<
   { title: string; description: string; role: RoleCode; label: string }
 > = {
   SALES_OWNER: {
-    title: 'Assign sales owner',
+    title: 'Assign campaign owner',
     description: 'The owner remains responsible for client coordination.',
     role: 'SALES',
-    label: 'Sales owner',
+    label: 'Campaign owner',
   },
   CREATOR: {
     title: 'Assign creator',

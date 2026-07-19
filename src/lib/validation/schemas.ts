@@ -57,7 +57,6 @@ export const promotionSchema = z.object({
   dueDate: z
     .string()
     .refine((value) => !value || !Number.isNaN(Date.parse(value)), 'Choose a valid date.'),
-  salesOwnerId: z.uuid('Choose a sales owner.'),
   metadata: campaignMetadataSchema.optional(),
 });
 

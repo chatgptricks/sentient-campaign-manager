@@ -31,7 +31,7 @@ export const navigationItems: NavigationItem[] = [
     icon: Network,
     roles: ['SALES', 'PUBLISHER'],
   },
-  { label: 'Finance', to: '/finance', icon: CircleDollarSign, roles: ['SALES', 'FINANCE'] },
+  { label: 'Sales', to: '/finance', icon: CircleDollarSign, roles: ['SALES', 'FINANCE'] },
   { label: 'My Work', to: '/my-work', icon: BriefcaseBusiness },
   { label: 'Notifications', to: '/notifications', icon: Bell },
   { label: 'Users & roles', to: '/administration', icon: UsersRound, roles: ['ADMINISTRATOR'] },

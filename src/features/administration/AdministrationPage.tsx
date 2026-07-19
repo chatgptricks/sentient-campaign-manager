@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 
 import type { Profile } from '../../domain/models';
-import { roleCodes, roleLabel, type RoleCode } from '../../domain/permissions';
+import { assignableRoleCodes, roleLabel, type RoleCode } from '../../domain/permissions';
 import { campaignService } from '../../lib/data';
 import { getFriendlyError } from '../../domain/errors';
 import {
@@ -51,7 +51,7 @@ function RoleSelect({ value, onChange }: { value?: RoleCode; onChange(role: Role
         <option value="" disabled>
           Select role level
         </option>
-        {roleCodes.map((role) => (
+        {assignableRoleCodes.map((role) => (
           <option key={role} value={role}>
             {roleLabel[role]}
           </option>

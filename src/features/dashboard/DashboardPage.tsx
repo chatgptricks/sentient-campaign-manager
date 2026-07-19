@@ -155,7 +155,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader
             title="Requires attention"
-            description="Approvals, revisions, verification, and finance handoffs."
+            description="Approvals, revisions, verification, and sales handoffs."
             action={
               <Button asChild variant="ghost" size="sm">
                 <Link to="/my-work">

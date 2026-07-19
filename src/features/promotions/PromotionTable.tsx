@@ -50,7 +50,7 @@ export function PromotionTable({
       }),
       columnHelper.display({
         id: 'currentOwner',
-        header: 'Current owner · Sales owner',
+        header: 'Current owner',
         cell: ({ row }) => getCurrentOwnerName(row.original),
       }),
       columnHelper.accessor('creatorName', {

@@ -64,7 +64,7 @@ export function ClientDetailPage() {
         <Card>
           <CardHeader
             title="Client information"
-            description="Billing fields remain protected by the finance boundary."
+            description="Billing fields remain protected by the sales boundary."
           />
           <CardBody>
             <div className="grid size-12 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">

@@ -29,14 +29,14 @@ const promotion: Promotion = {
 };
 
 describe('PromotionTable', () => {
-  it('shows the assigned sales owner', () => {
+  it('shows the campaign owner', () => {
     render(
       <MemoryRouter>
         <PromotionTable promotions={[promotion]} />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('columnheader', { name: /sales owner/i })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /current owner/i })).toBeInTheDocument();
     expect(screen.getByText('Maya Chen')).toBeInTheDocument();
   });
 });

@@ -102,7 +102,7 @@ const workflowStages = [
   { label: 'Approval', statuses: ['SUBMITTED_FOR_APPROVAL', 'APPROVED'] },
   { label: 'Publishing', statuses: ['PUBLISHER_ASSIGNED', 'PUBLISHING_IN_PROGRESS', 'PUBLISHED'] },
   { label: 'Verification', statuses: ['VERIFICATION_PENDING', 'VERIFIED'] },
-  { label: 'Finance', statuses: ['READY_FOR_INVOICING', 'INVOICED'] },
+  { label: 'Sales', statuses: ['READY_FOR_INVOICING', 'INVOICED'] },
 ] as const;
 
 function currentStageIndex(status: string) {
@@ -161,7 +161,7 @@ export function ResourceAccessControl({
 function OverviewSection({ detail }: { detail: PromotionDetail }) {
   const { promotion, metadata } = detail;
   const assignments = [
-    { label: 'Sales owner', name: promotion.salesOwnerName },
+    { label: 'Campaign owner', name: promotion.salesOwnerName },
     { label: 'Creator', name: promotion.creatorName },
     { label: 'Approver', name: promotion.approverName },
     { label: 'Publisher', name: promotion.publisherName },
@@ -857,7 +857,7 @@ function FinanceSection({
       <Card>
         <CardHeader
           title="Verification evidence"
-          description="Every immutable verification attempt supporting the finance handoff."
+          description="Every immutable verification attempt supporting the sales handoff."
         />
         {detail.publications.length ? (
           <div className="divide-y divide-[var(--border)]">
@@ -903,7 +903,7 @@ function FinanceSection({
 
       <Card>
         <CardHeader
-          title="Finance"
+          title="Sales"
           description="Billing becomes available only after verified publication evidence."
           action={
             detail.promotion.allowedActions.includes('CREATE_INVOICE') ? (
@@ -981,7 +981,7 @@ function FinanceSection({
                   onClick={() => {
                     if (
                       window.confirm(
-                        'Mark this invoice as failed? The promotion will return to Ready for invoicing so Finance can register a replacement.',
+                        'Mark this invoice as failed? The promotion will return to Ready for invoicing so Sales can register a replacement.',
                       )
                     )
                       onSetStatus('FAILED');
@@ -995,7 +995,7 @@ function FinanceSection({
                   onClick={() => {
                     if (
                       window.confirm(
-                        'Void this invoice? The promotion will return to Ready for invoicing so Finance can register a replacement.',
+                        'Void this invoice? The promotion will return to Ready for invoicing so Sales can register a replacement.',
                       )
                     )
                       onSetStatus('VOID');
@@ -1013,7 +1013,7 @@ function FinanceSection({
             title={
               detail.promotion.status === 'READY_FOR_INVOICING'
                 ? 'Ready for invoicing'
-                : 'Finance is locked'
+                : 'Sales is locked'
             }
             description={
               detail.promotion.status === 'READY_FOR_INVOICING'
@@ -1183,7 +1183,7 @@ export function PromotionDetailPage() {
     { value: 'approval', label: 'Approval', count: detail.submissions.length },
     { value: 'publishing', label: 'Publishing', count: detail.publications.length },
     ...(canViewFinance
-      ? [{ value: 'finance', label: 'Finance', count: detail.invoice ? 1 : 0 }]
+      ? [{ value: 'finance', label: 'Sales', count: detail.invoice ? 1 : 0 }]
       : []),
     { value: 'activity', label: 'Activity' },
     { value: 'audit', label: 'Audit' },
@@ -1230,15 +1230,6 @@ export function PromotionDetailPage() {
             >
               <Pencil className="size-4" />
               Edit promotion
-            </ActionButton>
-            <ActionButton
-              action="ASSIGN_SALES_OWNER"
-              allowed={allowed}
-              variant="secondary"
-              onClick={() => setDialog({ type: 'assign', role: 'SALES_OWNER' })}
-            >
-              <UserRound className="size-4" />
-              Assign sales owner
             </ActionButton>
             <ActionButton
               action="ASSIGN_CREATOR"
@@ -1573,7 +1564,7 @@ export function PromotionDetailPage() {
               campaignService.recordVerification(currentPublication.id, input, promotion.version),
             success:
               input.status === 'VERIFIED'
-                ? 'Publication verified and finance notified.'
+                ? 'Publication verified and sales notified.'
                 : 'Verification attempt recorded.',
           });
         }}

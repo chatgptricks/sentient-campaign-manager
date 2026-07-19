@@ -9,12 +9,20 @@ export const roleCodes = [
 
 export type RoleCode = (typeof roleCodes)[number];
 
+export const assignableRoleCodes = [
+  'ADMINISTRATOR',
+  'SALES',
+  'APPROVER',
+  'CREATOR',
+  'PUBLISHER',
+] as const satisfies readonly RoleCode[];
+
 export const roleLabel: Record<RoleCode, string> = {
   SALES: 'Sales',
   CREATOR: 'Creator',
   APPROVER: 'Approver',
   PUBLISHER: 'Publisher',
-  FINANCE: 'Finance',
+  FINANCE: 'Sales',
   ADMINISTRATOR: 'Administrator',
 };
 

@@ -63,7 +63,7 @@ export function LoginPage() {
           </h1>
           <p className="mt-6 max-w-lg text-base leading-7 text-[#a9ada5]">
             Move client work from sales intake through creative, approval, publishing, verification,
-            and finance—with a durable record of every decision.
+            and revenue follow-up—with a durable record of every decision.
           </p>
         </div>
         <div className="relative grid grid-cols-3 gap-4 border-t border-white/10 pt-6 text-xs text-[#8f948b]">

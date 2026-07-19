@@ -872,10 +872,9 @@ export const demoCampaignService: CampaignService = {
       input.dueDate || iso(7).slice(0, 10),
       {
         description: input.description || null,
-        salesOwnerId: input.salesOwnerId,
+        salesOwnerId: ids.sales,
         salesOwnerName:
-          profiles.find((profile) => profile.id === input.salesOwnerId)?.displayName ??
-          'Sales owner',
+          profiles.find((profile) => profile.id === ids.sales)?.displayName ?? 'Campaign owner',
         creatorId: null,
         creatorName: null,
         approverId: null,
