@@ -178,9 +178,6 @@ export function DashboardPage() {
                   <p className="text-xs font-bold tracking-[0.14em] text-[var(--text-dim)] uppercase">
                     Active workflow by stage
                   </p>
-                  <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    How many promotions are currently waiting in each production stage.
-                  </p>
                 </div>
                 <div className="grid size-10 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">
                   <Megaphone className="size-4" />

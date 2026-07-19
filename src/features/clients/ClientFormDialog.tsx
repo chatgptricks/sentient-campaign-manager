@@ -15,15 +15,21 @@ import { Field, Input, Textarea } from '../../components/ui/Field';
 export function ClientFormDialog({
   trigger,
   client,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
   onCreated,
   onSaved,
 }: {
-  trigger: ReactNode;
+  trigger?: ReactNode;
   client?: Client;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onCreated?: (client: Client) => void;
   onSaved?: (client: Client) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = externalOpen ?? internalOpen;
+  const setOpen = externalOnOpenChange ?? setInternalOpen;
   const queryClient = useQueryClient();
   const form = useForm<ClientInput>({
     resolver: zodResolver(clientSchema),

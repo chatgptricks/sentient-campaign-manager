@@ -4,7 +4,7 @@ const runtimeProcess = Reflect.get(globalThis, 'process') as
   { env?: Record<string, string | undefined> } | undefined;
 const runtimeEnv = runtimeProcess?.env ?? {};
 const isCI = Boolean(runtimeEnv.CI);
-const serverOrigin = 'http://127.0.0.1:4173';
+const serverOrigin = 'http://127.0.0.1:5173';
 
 function normalizeBasePath(value: string | undefined): string {
   if (!value || value === '/') return '/';
@@ -30,10 +30,15 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 4173',
+    command: 'npm run dev',
     url: appBaseUrl,
     reuseExistingServer: !isCI,
     timeout: 120_000,
+    env: {
+      VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH',
+      VITE_DEMO_MODE: 'false',
+    },
   },
   projects: [
     {

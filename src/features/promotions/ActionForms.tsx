@@ -500,12 +500,7 @@ export function PublicationDialog({
   }, [defaultArtifactResourceLinkId, form]);
 
   return (
-    <Dialog
-      open={props.open}
-      onOpenChange={props.onOpenChange}
-      title="Record publication"
-      description="Manual adapter: record content already published outside this system. This does not publish automatically."
-    >
+    <Dialog open={props.open} onOpenChange={props.onOpenChange} title="Record publication">
       <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid-ink)]">
           Manual publishing mode · evidence will be stored in the immutable publication history.

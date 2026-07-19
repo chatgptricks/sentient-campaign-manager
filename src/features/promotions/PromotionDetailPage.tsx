@@ -727,7 +727,6 @@ function PublishingSection({
       <Card>
         <CardHeader
           title="Publication evidence"
-          description="Manual publishing records describe work completed outside this system."
           action={
             detail.publications.length ? (
               <Button

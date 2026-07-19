@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import {
   addMonths,
   eachDayOfInterval,
@@ -12,8 +12,10 @@ import {
   startOfWeek,
   subMonths,
 } from 'date-fns';
-import { ArrowLeft, ArrowRight, CalendarDays, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, CalendarDays, Plus, ExternalLink, Copy } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { ContextMenu, type ContextMenuState } from '../ui/ContextMenu';
 
 import { Button } from '../ui/Button';
 import { Card, CardBody, CardHeader } from '../ui/Card';
@@ -46,11 +48,7 @@ interface CalendarWorkspaceProps {
   views: CalendarViewDefinition[];
 }
 
-interface ContextMenuState {
-  x: number;
-  y: number;
-  day: Date;
-}
+// Removed custom ContextMenuState
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -72,7 +70,8 @@ function CalendarViewContent({
   const today = startOfToday();
   const [month, setMonth] = useState(today);
   const [selectedDay, setSelectedDay] = useState(today);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [contextMenu, setContextMenu] = useState<(ContextMenuState & { day: Date }) | null>(null);
+  const navigate = useNavigate();
   const eventsByDate = useMemo(() => {
     const grouped = new Map<string, CalendarEvent[]>();
     events.forEach((event) => {
@@ -100,22 +99,11 @@ function CalendarViewContent({
           chip: 'bg-[var(--acid)]/12 text-[var(--acid-ink)]',
         };
 
-  useEffect(() => {
-    if (!contextMenu) return;
-    const close = () => setContextMenu(null);
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [contextMenu]);
+  // ContextMenu component handles its own event listeners
 
   const openContextMenu = (event: MouseEvent<HTMLButtonElement>, day: Date) => {
     event.preventDefault();
+    event.stopPropagation();
     setSelectedDay(day);
     setContextMenu({ x: event.clientX, y: event.clientY, day });
   };
@@ -257,52 +245,49 @@ function CalendarViewContent({
       </div>
 
       {contextMenu ? (
-        <div
-          role="menu"
-          aria-label={`Options for ${format(contextMenu.day, 'MMMM d, yyyy')}`}
-          className="fixed z-50 min-w-56 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-1 shadow-2xl"
-          style={{
-            top: Math.min(contextMenu.y, window.innerHeight - 180),
-            left: Math.min(contextMenu.x, window.innerWidth - 240),
-          }}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <p className="px-3 py-2 text-[10px] font-bold tracking-[0.1em] text-[var(--text-dim)] uppercase">
-            {format(contextMenu.day, 'EEE, MMM d')} · Context actions
-          </p>
-          {addHrefForDate ? (
-            <Link
-              role="menuitem"
-              to={addHrefForDate(dateKey(contextMenu.day))}
-              onClick={() => setContextMenu(null)}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              <Plus className="size-4 text-[var(--acid-ink)]" />
-              Add promotion on this date
-            </Link>
-          ) : null}
-          {selectedEvents.map((event) => (
-            <Link
-              key={event.id}
-              role="menuitem"
-              to={event.href}
-              onClick={() => setContextMenu(null)}
-              className="block truncate rounded-md px-3 py-2 text-sm text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              Open {event.title}
-            </Link>
-          ))}
-          {!addHrefForDate && !selectedEvents.length ? (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => setContextMenu(null)}
-              className="block w-full rounded-md px-3 py-2 text-left text-sm text-[var(--text)] hover:bg-[var(--surface-hover)]"
-            >
-              View sales items for this date
-            </button>
-          ) : null}
-        </div>
+        <ContextMenu
+          state={contextMenu}
+          onClose={() => setContextMenu(null)}
+          groups={
+            contextMenu
+              ? [
+                  {
+                    items: [
+                      {
+                        label: `Add promotion on ${format(contextMenu.day, 'MMM d')}`,
+                        description: 'Create a new item scheduled for this date.',
+                        icon: <Plus className="size-4" />,
+                        disabled: !addHrefForDate,
+                        onSelect: () => {
+                          if (addHrefForDate) navigate(addHrefForDate(dateKey(contextMenu.day)));
+                        },
+                      },
+                      {
+                        label: 'Copy date',
+                        description: format(contextMenu.day, 'yyyy-MM-dd'),
+                        icon: <Copy className="size-4" />,
+                        onSelect: () => {
+                          void navigator.clipboard.writeText(format(contextMenu.day, 'yyyy-MM-dd'));
+                          toast.success('Date copied.');
+                        },
+                      },
+                    ],
+                  },
+                  ...(selectedEvents.length > 0
+                    ? [
+                        {
+                          items: selectedEvents.map((event) => ({
+                            label: `Open ${event.title}`,
+                            icon: <ExternalLink className="size-4" />,
+                            onSelect: () => navigate(event.href),
+                          })),
+                        },
+                      ]
+                    : []),
+                ]
+              : []
+          }
+        />
       ) : null}
     </div>
   );

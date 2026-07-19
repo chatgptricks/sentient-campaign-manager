@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, Building2, Mail, MapPin, Pencil, Plus } from 'lucide-react';
+import { Archive, Building2, Copy, ExternalLink, Mail, MapPin, Pencil, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import type { Client } from '../../domain/models';
 import { hasAnyRole } from '../../domain/permissions';
 import { getFriendlyError } from '../../domain/errors';
 import { campaignService } from '../../lib/data';
@@ -13,11 +15,16 @@ import { Card, CardBody } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
+import { ContextMenu, type ContextMenuState } from '../../components/ui/ContextMenu';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { ClientFormDialog } from './ClientFormDialog';
 
 export function ClientsPage() {
   const { profile } = useAuth();
+  const [clientMenu, setClientMenu] = useState<(ContextMenuState & { client: Client }) | null>(
+    null,
+  );
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ['clients', profile?.id],
@@ -59,7 +66,15 @@ export function ClientsPage() {
       ) : query.data?.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {query.data.map((client) => (
-            <Card key={client.id} className="group transition hover:border-[var(--border-strong)]">
+            <Card
+              key={client.id}
+              className="group transition hover:border-[var(--border-strong)]"
+              onContextMenuCapture={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setClientMenu({ x: event.clientX, y: event.clientY, client });
+              }}
+            >
               <CardBody>
                 <div className="flex items-start justify-between gap-4">
                   <div className="grid size-11 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">
@@ -129,6 +144,72 @@ export function ClientsPage() {
           />
         </Card>
       )}
+      <ClientFormDialog
+        client={editingClient ?? undefined}
+        open={Boolean(editingClient)}
+        onOpenChange={(open) => !open && setEditingClient(null)}
+      />
+      <ContextMenu
+        state={clientMenu}
+        onClose={() => setClientMenu(null)}
+        groups={
+          clientMenu
+            ? [
+                {
+                  items: [
+                    {
+                      label: 'Open client',
+                      description: 'View full record and promotions.',
+                      icon: <ExternalLink className="size-4" />,
+                      onSelect: () => {
+                        window.location.hash = `#/clients/${clientMenu.client.id}`;
+                      },
+                    },
+                    {
+                      label: 'Edit client',
+                      description: 'Update client details.',
+                      icon: <Pencil className="size-4" />,
+                      disabled: !canCreate,
+                      onSelect: () => setEditingClient(clientMenu.client),
+                    },
+                    {
+                      label: 'Copy billing info',
+                      description: 'Copy name, email, and address.',
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        const { name, billingEmail, billingAddress } = clientMenu.client;
+                        void navigator.clipboard.writeText(
+                          `${name}\n${billingEmail ?? 'No email'}\n${billingAddress ?? 'No address'}`,
+                        );
+                        toast.success('Billing info copied.');
+                      },
+                    },
+                  ],
+                },
+                {
+                  items: [
+                    {
+                      label: 'Archive client',
+                      description: 'Remove from active list. Retains history.',
+                      icon: <Archive className="size-4" />,
+                      danger: true,
+                      disabled: !canCreate,
+                      onSelect: () => {
+                        if (
+                          window.confirm(
+                            `Archive ${clientMenu.client.name}? Existing promotions and audit history will remain available.`,
+                          )
+                        ) {
+                          archiveClient.mutate(clientMenu.client.id);
+                        }
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []
+        }
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, Network } from 'lucide-react';
+import { Copy, ExternalLink, Network } from 'lucide-react';
+import { toast } from 'sonner';
 
 import type { PublishingAccount } from '../../domain/models';
 import { publishingChannelLabel } from '../../domain/channels';
@@ -10,6 +12,7 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ContextMenu, type ContextMenuState } from '../../components/ui/ContextMenu';
 import { useAuth } from '../auth/AuthProvider';
 
 const ownershipLabel: Record<PublishingAccount['ownershipType'], string> = {
@@ -20,6 +23,9 @@ const ownershipLabel: Record<PublishingAccount['ownershipType'], string> = {
 
 export function PublishingAccountsPage() {
   const { profile } = useAuth();
+  const [accountMenu, setAccountMenu] = useState<
+    (ContextMenuState & { account: PublishingAccount }) | null
+  >(null);
   const query = useQuery({
     queryKey: ['publishing-accounts', profile?.id],
     queryFn: () => campaignService.listPublishingAccounts(),
@@ -48,7 +54,15 @@ export function PublishingAccountsPage() {
         />
         <div className="grid gap-px bg-[var(--border)] md:grid-cols-2 xl:grid-cols-3">
           {accounts.map((account) => (
-            <article key={account.id} className="bg-[var(--surface-raised)] p-5">
+            <article
+              key={account.id}
+              className="border border-transparent bg-[var(--surface-raised)] p-5 transition hover:border-[var(--border-strong)]"
+              onContextMenuCapture={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setAccountMenu({ x: event.clientX, y: event.clientY, account });
+              }}
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="grid size-10 place-items-center rounded-lg bg-[var(--acid)]/8 text-[var(--acid-ink)]">
                   <Network className="size-4.5" />
@@ -98,6 +112,46 @@ export function PublishingAccountsPage() {
           ))}
         </div>
       </Card>
+      <ContextMenu
+        state={accountMenu}
+        onClose={() => setAccountMenu(null)}
+        groups={
+          accountMenu
+            ? [
+                {
+                  items: [
+                    {
+                      label: 'Open account',
+                      description: 'View channel externally.',
+                      icon: <ExternalLink className="size-4" />,
+                      onSelect: () => {
+                        window.open(accountMenu.account.accountUrl, '_blank', 'noreferrer');
+                      },
+                    },
+                    {
+                      label: 'Copy handle',
+                      description: 'Copy the channel handle.',
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        void navigator.clipboard.writeText(accountMenu.account.handle);
+                        toast.success('Handle copied.');
+                      },
+                    },
+                    {
+                      label: 'Copy URL',
+                      description: 'Copy the full URL.',
+                      icon: <Copy className="size-4" />,
+                      onSelect: () => {
+                        void navigator.clipboard.writeText(accountMenu.account.accountUrl);
+                        toast.success('URL copied.');
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []
+        }
+      />
     </div>
   );
 }

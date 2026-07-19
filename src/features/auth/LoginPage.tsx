@@ -66,10 +66,9 @@ export function LoginPage() {
             and revenue follow-up—with a durable record of every decision.
           </p>
         </div>
-        <div className="relative grid grid-cols-3 gap-4 border-t border-white/10 pt-6 text-xs text-[#8f948b]">
+        <div className="relative grid grid-cols-2 gap-4 border-t border-white/10 pt-6 text-xs text-[#8f948b]">
           <span>Role-based access</span>
           <span>Immutable history</span>
-          <span>Manual adapters, honestly labeled</span>
         </div>
       </section>
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">

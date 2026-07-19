@@ -500,10 +500,7 @@ export function AdministrationPage() {
 
         <Tabs.Content value="integrations" className="mt-6 focus-visible:outline-none">
           <Card>
-            <CardHeader
-              title="Integration connections"
-              description="Manual mode means the external action is completed outside this system and recorded honestly."
-            />
+            <CardHeader title="Integration connections" />
             <div className="grid gap-px bg-[var(--border)] sm:grid-cols-2 xl:grid-cols-4">
               {healthData.connections.map((connection) => (
                 <article key={connection.id} className="bg-[var(--surface-raised)] p-5">

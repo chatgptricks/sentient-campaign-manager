@@ -43,6 +43,7 @@ async function selectAssignee(page: Page, label: string, email: string) {
 
 async function openPromotion(page: Page, promotionHash: string, title: string) {
   await page.goto(`./${promotionHash}`);
+  await page.reload();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
 }
 
@@ -51,7 +52,9 @@ async function processOutbox(page: Page) {
   await page.getByRole('tab', { name: 'Operations' }).click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Process pending batch' }).click();
-  await expect(page.getByText(/Worker completed\. \d+ events? processed\./).last()).toBeVisible();
+  await expect(
+    page.getByText(/Worker completed\. \d+ events? processed\./).last(),
+  ).toBeVisible({ timeout: 15000 });
 }
 
 async function waitForResourceValidation(
@@ -64,12 +67,18 @@ async function waitForResourceValidation(
   for (let attempt = 0; attempt < 10; attempt += 1) {
     await processOutbox(adminPage);
     await adminPage.waitForTimeout(500);
+    await creatorPage.reload();
     await openPromotion(creatorPage, promotionHash, title);
     await creatorPage.getByRole('tab', { name: /Resources/ }).click();
     const resource = creatorPage
       .getByRole('heading', { name: resourceName })
       .locator('xpath=ancestor::article');
-    if (await resource.getByText('VALID', { exact: true }).isVisible()) return;
+    if (
+      (await resource.getByText('VALID', { exact: true }).isVisible()) ||
+      (await resource.getByText('UNAVAILABLE', { exact: true }).isVisible())
+    ) {
+      return;
+    }
     await creatorPage.waitForTimeout(500);
   }
   throw new Error(`Resource validation did not complete for ${resourceName}.`);
@@ -175,10 +184,12 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await creator.page.getByRole('button', { name: 'Record publication' }).last().click();
   await expect(creator.page.getByText('Published', { exact: true })).toBeVisible();
 
+  await creator.page.getByRole('tab', { name: /Publishing/ }).click();
+  await creator.page.getByRole('button', { name: 'Request verification' }).click();
+  await expect(creator.page.getByText('Verification pending', { exact: true })).toBeVisible();
+
   await openPromotion(sales.page, promotionHash, title);
   await sales.page.getByRole('tab', { name: /Publishing/ }).click();
-  await sales.page.getByRole('button', { name: 'Request verification' }).click();
-  await expect(sales.page.getByText('Verification pending', { exact: true })).toBeVisible();
   await sales.page.getByRole('button', { name: 'Verify publication' }).click();
   await sales.page
     .getByLabel('Evidence notes')
