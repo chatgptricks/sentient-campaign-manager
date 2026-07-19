@@ -309,6 +309,31 @@ async function callRpc(name: string, input: Row) {
   return data;
 }
 
+async function persistCampaignMetadata(id: string, input: CampaignMetadataInput) {
+  const data = await callRpc('upsert_campaign_metadata', {
+    promotion_id: id,
+    input: {
+      campaign_type: input.campaignType,
+      scheduled_date: input.scheduledDate || null,
+      priority: input.priority,
+      brief_url: input.briefUrl || null,
+      client_material_links: input.clientMaterialLinks
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      external_resource_links: input.externalResourceLinks
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      platforms: input.platforms,
+      publishing_account_ids: input.publishingAccountIds,
+      external_partner_account_ids: input.externalPartnerAccountIds,
+      internal_notes: input.internalNotes || null,
+    },
+  });
+  return mapCampaignMetadata(data);
+}
+
 const promotionSelect = `
   *,
   client:clients!promotions_client_id_fkey(name),
@@ -553,28 +578,7 @@ export const supabaseCampaignService: CampaignService = {
   },
 
   async saveCampaignMetadata(id: string, input: CampaignMetadataInput) {
-    const data = await callRpc('upsert_campaign_metadata', {
-      promotion_id: id,
-      input: {
-        campaign_type: input.campaignType,
-        scheduled_date: input.scheduledDate || null,
-        priority: input.priority,
-        brief_url: input.briefUrl || null,
-        client_material_links: input.clientMaterialLinks
-          .split(/\r?\n/)
-          .map((item) => item.trim())
-          .filter(Boolean),
-        external_resource_links: input.externalResourceLinks
-          .split(/\r?\n/)
-          .map((item) => item.trim())
-          .filter(Boolean),
-        platforms: input.platforms,
-        publishing_account_ids: input.publishingAccountIds,
-        external_partner_account_ids: input.externalPartnerAccountIds,
-        internal_notes: input.internalNotes || null,
-      },
-    });
-    return mapCampaignMetadata(data);
+    return persistCampaignMetadata(id, input);
   },
 
   async listPublishingAccounts() {
@@ -786,7 +790,7 @@ export const supabaseCampaignService: CampaignService = {
       },
     });
     const promotion = mapPromotion(data);
-    if (input.metadata) await this.saveCampaignMetadata(promotion.id, input.metadata);
+    if (input.metadata) await persistCampaignMetadata(promotion.id, input.metadata);
     return promotion;
   },
 
