@@ -612,6 +612,7 @@ export const supabaseCampaignService: CampaignService = {
         roles: userRoles
           .map((entry) => textValue(relation(asRow(entry).role).code) as RoleCode)
           .filter(Boolean),
+        slackUserId: nullableText(row.slack_user_id),
       };
     });
     return role

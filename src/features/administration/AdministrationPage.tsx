@@ -457,7 +457,14 @@ export function AdministrationPage() {
                     <tr key={user.id} data-user-id={user.id}>
                       <td>
                         <p className="font-semibold text-[var(--text)]">{user.displayName}</p>
-                        <p className="mt-1 text-xs text-[var(--text-dim)]">{user.email}</p>
+                        <p className="mt-1 text-xs text-[var(--text-dim)]">
+                          {user.email}
+                          {user.slackUserId ? (
+                            <span className="ml-2 text-[11px] font-mono text-[var(--acid-ink)]">
+                              (Slack: {user.slackUserId})
+                            </span>
+                          ) : null}
+                        </p>
                       </td>
                       <td>
                         <Badge

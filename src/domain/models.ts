@@ -8,6 +8,7 @@ export interface Profile {
   displayName: string;
   status: 'ACTIVE' | 'INVITED' | 'SUSPENDED';
   roles: RoleCode[];
+  slackUserId?: string | null;
 }
 
 export interface Client {
