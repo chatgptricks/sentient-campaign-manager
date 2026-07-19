@@ -140,6 +140,8 @@ select lives_ok(
   ),
   'Administrator can explicitly retry a dead-letter event'
 );
+reset role;
+set local role service_role;
 select results_eq(
   $$select status::text, attempt_count, last_error from public.outbox_events where id = (select id from outbox_test_ids where key = 'dead')$$,
   $$values ('PENDING'::text, 0, null::text)$$,

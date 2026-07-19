@@ -1,7 +1,7 @@
 export const roleCodes = [
   'ADMINISTRATOR',
-  'FINANCE',
   'SALES',
+  'FINANCE',
   'APPROVER',
   'CREATOR',
   'PUBLISHER',
@@ -26,8 +26,8 @@ export const roleLabel: Record<RoleCode, string> = {
 
 const roleRank: Record<RoleCode, number> = {
   ADMINISTRATOR: 60,
-  FINANCE: 50,
   SALES: 40,
+  FINANCE: 40,
   APPROVER: 20,
   CREATOR: 20,
   PUBLISHER: 20,

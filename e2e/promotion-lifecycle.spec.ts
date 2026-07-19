@@ -6,18 +6,19 @@ test.skip(
 );
 
 test('completes the internal promotion lifecycle with a revision cycle', async ({ page }) => {
+  test.setTimeout(90_000);
+
   await page.goto('./#/dashboard');
   await expect(page.getByRole('heading', { name: /Good morning/ })).toBeVisible();
 
   await page.getByRole('link', { name: 'New promotion' }).click();
-  await page.getByLabel('Client').selectOption({ label: 'Arcadia Hotels' });
-  await page.getByLabel('Promotion title').fill('E2E verified launch');
+  await page.getByLabel('Client', { exact: true }).selectOption({ label: 'Arcadia Hotels' });
+  await page.getByLabel('Campaign name').fill('E2E verified launch');
   await page
     .getByLabel('Description')
-    .fill('A complete workflow test from sales intake through finance.');
+    .fill('A complete workflow test from sales intake through invoicing.');
   await page.getByLabel('Due date').fill('2026-08-15');
-  await page.getByLabel('Sales owner').selectOption({ label: 'Maya Chen' });
-  await page.getByRole('button', { name: 'Create promotion' }).click();
+  await page.getByRole('button', { name: 'Create campaign' }).click();
   await expect(page.getByRole('heading', { name: 'E2E verified launch' })).toBeVisible();
   await expect(page.getByText('Draft', { exact: true })).toBeVisible();
 
@@ -28,11 +29,6 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await page.getByRole('button', { name: 'Assign', exact: true }).click();
   await expect(page.getByText('Creator assigned', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Assign approver' }).click();
-  await page
-    .getByRole('combobox', { name: 'Approver', exact: true })
-    .selectOption({ label: 'Amina Okafor · amina@sentient.agency' });
-  await page.getByRole('button', { name: 'Assign', exact: true }).click();
   await page.getByRole('button', { name: 'Start creative' }).click();
   await expect(page.getByText('Creative in progress', { exact: true })).toBeVisible();
 
@@ -42,7 +38,7 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await page.getByLabel('HTTPS link').fill('https://www.canva.com/design/e2e-v1');
   await page.getByRole('button', { name: 'Attach resource' }).last().click();
   await expect(page.getByText('E2E creative v1')).toBeVisible();
-  await page.getByRole('button', { name: 'Submit for approval' }).first().click();
+  await page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
   await expect(page.getByText('Awaiting approval', { exact: true })).toBeVisible();
 
   await page.getByRole('tab', { name: /Approval/ }).click();
@@ -59,17 +55,12 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await page.getByLabel('Display name').fill('E2E creative v2');
   await page.getByLabel('HTTPS link').fill('https://www.canva.com/design/e2e-v2');
   await page.getByRole('button', { name: 'Attach resource' }).last().click();
-  await page.getByRole('button', { name: 'Submit for approval' }).first().click();
+  await page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
   await page.getByRole('tab', { name: /Approval/ }).click();
   await page.getByRole('button', { name: 'Approve' }).click();
   await page.getByRole('button', { name: 'Approve submission' }).click();
   await expect(page.getByText('Approved', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Assign publisher' }).click();
-  await page
-    .getByRole('combobox', { name: 'Publisher', exact: true })
-    .selectOption({ label: 'Noah Williams · noah@sentient.agency' });
-  await page.getByRole('button', { name: 'Assign', exact: true }).click();
   await page.getByRole('button', { name: 'Start publishing' }).click();
   await page.getByRole('button', { name: 'Record publication' }).click();
   await page.getByLabel('Destination').fill('@e2e_client');

@@ -1,9 +1,9 @@
-export type ProductionRole = 'admin' | 'sales' | 'creator' | 'approver' | 'publisher' | 'finance';
+export type ProductionRole = 'admin' | 'sales' | 'creator';
 
 export type ProductionCredential = { email: string; password: string };
 export type ProductionAccounts = Record<ProductionRole, ProductionCredential>;
 
-const roles: ProductionRole[] = ['admin', 'sales', 'creator', 'approver', 'publisher', 'finance'];
+const roles: ProductionRole[] = ['admin', 'sales', 'creator'];
 
 export function readProductionAccounts(): ProductionAccounts {
   const raw = process.env.PRODUCTION_E2E_ACCOUNTS_JSON;

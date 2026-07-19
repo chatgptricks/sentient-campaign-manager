@@ -82,7 +82,7 @@ set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select is((select count(*)::integer from public.promotions), 0, 'an unassigned Creator cannot read the promotion');
 
 set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
-select throws_ok(
+select lives_ok(
   format(
     'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 1)',
     (select id from test_ids where key = 'promotion'),
@@ -96,21 +96,11 @@ select results_eq(
   $$values ('CREATOR_ASSIGNED'::text, 2)$$,
   'Creator assignment advances state and version'
 );
-select lives_ok(
-  format(
-    'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 2)',
-    (select id from test_ids where key = 'promotion'),
-    'APPROVER',
-    '44444444-4444-4444-8444-444444444444'
-  ),
-  'Sales assigns the Approver'
-);
-
 set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select is((select count(*)::integer from public.promotions), 1, 'the assigned Creator can read the promotion');
 select lives_ok(
   format(
-    'select public.start_creative_work(%L::uuid, 3)',
+    'select public.start_creative_work(%L::uuid, 2)',
     (select id from test_ids where key = 'promotion')
   ),
   'Creator starts work'
@@ -130,7 +120,7 @@ select 'resource-one', (
 )::uuid;
 select results_eq(
   $$select status::text, version from public.promotions where id = (select id from test_ids where key = 'promotion')$$,
-  $$values ('CREATIVE_IN_PROGRESS'::text, 5)$$,
+  $$values ('CREATIVE_IN_PROGRESS'::text, 4)$$,
   'attaching a resource records a versioned business change'
 );
 reset role;
@@ -142,7 +132,7 @@ set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.submit_for_approval(%L::uuid, %L::uuid, 5)',
+    'select public.submit_for_approval(%L::uuid, %L::uuid, 4)',
     (select id from test_ids where key = 'promotion'),
     (select id from test_ids where key = 'resource-one')
   ),
@@ -154,10 +144,10 @@ from public.approval_submissions
 where promotion_id = (select id from test_ids where key = 'promotion')
   and submission_number = 1;
 
-set local "request.jwt.claim.sub" = '44444444-4444-4444-8444-444444444444';
+set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select throws_ok(
   format(
-    'select public.decide_approval(%L::uuid, %L::public.approval_decision, null, 6)',
+    'select public.decide_approval(%L::uuid, %L::public.approval_decision, null, 5)',
     (select id from test_ids where key = 'submission-one'),
     'REVISION_REQUESTED'
   ),
@@ -166,16 +156,16 @@ select throws_ok(
 );
 select lives_ok(
   format(
-    'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 6)',
+    'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 5)',
     (select id from test_ids where key = 'submission-one'),
     'REVISION_REQUESTED',
     'Please increase the headline contrast.'
   ),
-  'Approver requests a documented revision'
+  'Creator requests a documented revision'
 );
 select results_eq(
   $$select status::text, version from public.promotions where id = (select id from test_ids where key = 'promotion')$$,
-  $$values ('REVISION_REQUESTED'::text, 7)$$,
+  $$values ('REVISION_REQUESTED'::text, 6)$$,
   'revision advances state while preserving history'
 );
 
@@ -195,7 +185,7 @@ set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.start_creative_work(%L::uuid, 7)',
+    'select public.start_creative_work(%L::uuid, 6)',
     (select id from test_ids where key = 'promotion')
   ),
   'Creator resumes after revision'
@@ -221,7 +211,7 @@ set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.submit_for_approval(%L::uuid, %L::uuid, 9)',
+    'select public.submit_for_approval(%L::uuid, %L::uuid, 8)',
     (select id from test_ids where key = 'promotion'),
     (select id from test_ids where key = 'resource-two')
   ),
@@ -238,15 +228,15 @@ select is(
   'both creative submissions remain in history'
 );
 
-set local "request.jwt.claim.sub" = '44444444-4444-4444-8444-444444444444';
+set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 10)',
+    'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 9)',
     (select id from test_ids where key = 'submission-two'),
     'APPROVED',
     'Approved for publishing.'
   ),
-  'Approver approves the latest submission'
+  'Creator approves the latest submission'
 );
 select results_eq(
   $$select submission_number, state from public.approval_submission_state where promotion_id = (select id from test_ids where key = 'promotion') order by submission_number$$,
@@ -262,27 +252,16 @@ select throws_ok(
     '{"amount":100,"currency":"USD","invoice_number":"PREMATURE"}'
   ),
   'P0001', 'FORBIDDEN',
-  'Finance cannot invoice before verification'
+  'Sales cannot invoice before verification'
 );
 
-set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
+set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 11)',
-    (select id from test_ids where key = 'promotion'),
-    'PUBLISHER',
-    '55555555-5555-4555-8555-555555555555'
-  ),
-  'Sales assigns the Publisher after approval'
-);
-
-set local "request.jwt.claim.sub" = '55555555-5555-4555-8555-555555555555';
-select lives_ok(
-  format(
-    'select public.start_publishing(%L::uuid, 12)',
+    'select public.start_publishing(%L::uuid, 10)',
     (select id from test_ids where key = 'promotion')
   ),
-  'Publisher starts publishing'
+  'Creator starts publishing'
 );
 insert into test_ids (key, id)
 select 'publication', (
@@ -295,19 +274,19 @@ select 'publication', (
       'artifact_resource_link_id', (select id from test_ids where key = 'resource-two'),
       'published_at', now()
     ),
-    13
+    11
   ) #>> '{publication,id}'
 )::uuid;
 select lives_ok(
   format(
-    'select public.request_publication_verification(%L::uuid, 14)',
+    'select public.request_publication_verification(%L::uuid, 12)',
     (select id from test_ids where key = 'publication')
   ),
-  'Publisher requests verification'
+  'Creator requests verification'
 );
 select lives_ok(
   format(
-    'select public.record_publication_verification(%L::uuid, %L::jsonb, 15)',
+    'select public.record_publication_verification(%L::uuid, %L::jsonb, 13)',
     (select id from test_ids where key = 'publication'),
     '{"status":"FAILED","verification_method":"MANUAL","details_json":{"reason":"post still processing"}}'
   ),
@@ -315,14 +294,14 @@ select lives_ok(
 );
 select results_eq(
   $$select status::text, version from public.promotions where id = (select id from test_ids where key = 'promotion')$$,
-  $$values ('VERIFICATION_PENDING'::text, 16)$$,
+  $$values ('VERIFICATION_PENDING'::text, 14)$$,
   'failed verification remains retryable'
 );
 reset role;
 set local role service_role;
 select lives_ok(
   format(
-    'select public.record_automated_publication_verification(%L::uuid, %L::jsonb, 16)',
+    'select public.record_automated_publication_verification(%L::uuid, %L::jsonb, 14)',
     (select id from test_ids where key = 'publication'),
     '{"status":"VERIFIED","verification_method":"AUTOMATED_CHECK","details_json":{"checked":true}}'
   ),
@@ -336,27 +315,27 @@ select is(
 reset role;
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '55555555-5555-4555-8555-555555555555';
+set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.complete_verified_workflow(%L::uuid, 17)',
+    'select public.complete_verified_workflow(%L::uuid, 15)',
     (select id from test_ids where key = 'promotion')
   ),
   'verified workflow becomes ready for invoicing explicitly'
 );
 
-set local "request.jwt.claim.sub" = '66666666-6666-4666-8666-666666666666';
+set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
 select lives_ok(
   format(
-    'select public.create_invoice(%L::uuid, %L::jsonb, 18)',
+    'select public.create_invoice(%L::uuid, %L::jsonb, 16)',
     (select id from test_ids where key = 'promotion'),
     '{"amount":1250.00,"currency":"USD","invoice_number":"INV-PGTAP-001","status":"ISSUED"}'
   ),
-  'Finance records the issued invoice'
+  'Sales records the issued invoice'
 );
 select results_eq(
   $$select status::text, version from public.promotions where id = (select id from test_ids where key = 'promotion')$$,
-  $$values ('INVOICED'::text, 19)$$,
+  $$values ('INVOICED'::text, 17)$$,
   'the full workflow ends in INVOICED'
 );
 reset role;
@@ -382,8 +361,8 @@ select lives_ok(
   'Administrator can read the sanitized operations summary'
 );
 select lives_ok(
-  $$select public.grant_user_role('33333333-3333-4333-8333-333333333333', 'APPROVER')$$,
-  'Admin can grant a second role for the self-approval scenario'
+  $$select public.grant_user_role('33333333-3333-4333-8333-333333333333', 'CREATOR')$$,
+  'Admin can grant the Creator role idempotently'
 );
 
 set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
@@ -406,33 +385,14 @@ select lives_ok(
   ),
   'Creator is assigned to the self-approval scenario'
 );
-select throws_ok(
-  format(
-    'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 2)',
-    (select id from test_ids where key = 'self-promotion'),
-    'APPROVER',
-    '33333333-3333-4333-8333-333333333333'
-  ),
-  'P0001', 'CREATOR_APPROVER_MUST_DIFFER',
-  'the same multi-role user cannot be assigned as Approver'
-);
-select lives_ok(
-  format(
-    'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 2)',
-    (select id from test_ids where key = 'self-promotion'),
-    'APPROVER',
-    '44444444-4444-4444-8444-444444444444'
-  ),
-  'a distinct Approver recovers the workflow without consuming a version on rejection'
-);
 
 set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.start_creative_work(%L::uuid, 3)',
+    'select public.start_creative_work(%L::uuid, 2)',
     (select id from test_ids where key = 'self-promotion')
   ),
-  'multi-role Creator starts the self-approval scenario'
+  'Creator starts the self-approval scenario'
 );
 insert into test_ids (key, id)
 select 'self-resource', (
@@ -455,25 +415,25 @@ set local "request.jwt.claim.role" = 'authenticated';
 set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.submit_for_approval(%L::uuid, %L::uuid, 5)',
+    'select public.submit_for_approval(%L::uuid, %L::uuid, 4)',
     (select id from test_ids where key = 'self-promotion'),
     (select id from test_ids where key = 'self-resource')
   ),
-  'multi-role Creator submits their work'
+  'Creator submits their work'
 );
 insert into test_ids (key, id)
 select 'self-submission', id
 from public.approval_submissions
 where promotion_id = (select id from test_ids where key = 'self-promotion');
-set local "request.jwt.claim.sub" = '44444444-4444-4444-8444-444444444444';
+set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
 select lives_ok(
   format(
-    'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 6)',
+    'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 5)',
     (select id from test_ids where key = 'self-submission'),
     'APPROVED',
-    'Trying to approve my own work'
+    'Approved by the same Creator'
   ),
-  'the distinct Approver can complete the recovered approval workflow'
+  'the same Creator can complete approval'
 );
 
 select * from finish();

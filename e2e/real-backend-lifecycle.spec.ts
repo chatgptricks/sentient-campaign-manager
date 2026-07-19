@@ -11,9 +11,6 @@ const localAccounts = {
   admin: localCredential('admin@sentient.local'),
   sales: localCredential('sales@sentient.local'),
   creator: localCredential('creator@sentient.local'),
-  approver: localCredential('approver@sentient.local'),
-  publisher: localCredential('publisher@sentient.local'),
-  finance: localCredential('finance@sentient.local'),
 };
 
 test.skip(!realBackend, 'Requires a freshly reset local Supabase stack.');
@@ -100,13 +97,13 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await sales.page.getByLabel('Billing email').fill(`billing-${suffix}@example.com`);
   await sales.page.getByRole('button', { name: 'Add client', exact: true }).last().click();
   await expect(sales.page.getByText(`${clientName} was added.`)).toBeVisible();
-  await sales.page.getByLabel('Promotion title').fill(title);
+  await sales.page.getByLabel('Campaign name').fill(title);
   await sales.page
     .getByLabel('Description')
-    .fill('A database-backed workflow test from sales intake through finance.');
+    .fill('A database-backed workflow test from sales intake through invoicing.');
   const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await sales.page.getByLabel('Due date').fill(dueDate);
-  await sales.page.getByRole('button', { name: 'Create promotion' }).click();
+  await sales.page.getByRole('button', { name: 'Create campaign' }).click();
   await expect(sales.page.getByRole('heading', { name: title })).toBeVisible();
   const promotionHash = new URL(sales.page.url()).hash;
 
@@ -114,10 +111,6 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await selectAssignee(sales.page, 'Creator', accounts.creator.email);
   await sales.page.getByRole('button', { name: 'Assign', exact: true }).click();
   await expect(sales.page.getByText('Creator assigned', { exact: true })).toBeVisible();
-
-  await sales.page.getByRole('button', { name: 'Assign approver' }).click();
-  await selectAssignee(sales.page, 'Approver', accounts.approver.email);
-  await sales.page.getByRole('button', { name: 'Assign', exact: true }).click();
 
   const creator = await authenticatedPage(browser, baseURL, accounts.creator);
   sessions.push(creator.context);
@@ -138,19 +131,16 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
     title,
     'E2E creative v1',
   );
-  await creator.page.getByRole('button', { name: 'Submit for approval' }).first().click();
+  await creator.page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
   await expect(creator.page.getByText('Awaiting approval', { exact: true })).toBeVisible();
 
-  const approver = await authenticatedPage(browser, baseURL, accounts.approver);
-  sessions.push(approver.context);
-  await openPromotion(approver.page, promotionHash, title);
-  await approver.page.getByRole('tab', { name: /Approval/ }).click();
-  await approver.page.getByRole('button', { name: 'Request revision' }).click();
-  await approver.page
+  await creator.page.getByRole('tab', { name: /Approval/ }).click();
+  await creator.page.getByRole('button', { name: 'Request revision' }).click();
+  await creator.page
     .getByLabel('Revision notes')
     .fill('Increase contrast and move the product mark into the opening frame.');
-  await approver.page.getByRole('button', { name: 'Request revision' }).last().click();
-  await expect(approver.page.getByText('Revision requested', { exact: true })).toBeVisible();
+  await creator.page.getByRole('button', { name: 'Request revision' }).last().click();
+  await expect(creator.page.getByText('Revision requested', { exact: true })).toBeVisible();
 
   await openPromotion(creator.page, promotionHash, title);
   await creator.page.getByRole('button', { name: 'Start creative' }).click();
@@ -167,31 +157,22 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
     title,
     'E2E creative v2',
   );
-  await creator.page.getByRole('button', { name: 'Submit for approval' }).first().click();
+  await creator.page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
 
-  await openPromotion(approver.page, promotionHash, title);
-  await approver.page.getByRole('tab', { name: /Approval/ }).click();
-  await approver.page.getByRole('button', { name: 'Approve' }).click();
-  await approver.page.getByRole('button', { name: 'Approve submission' }).click();
-  await expect(approver.page.getByText('Approved', { exact: true })).toBeVisible();
+  await creator.page.getByRole('tab', { name: /Approval/ }).click();
+  await creator.page.getByRole('button', { name: 'Approve' }).click();
+  await creator.page.getByRole('button', { name: 'Approve submission' }).click();
+  await expect(creator.page.getByText('Approved', { exact: true })).toBeVisible();
 
-  await openPromotion(sales.page, promotionHash, title);
-  await sales.page.getByRole('button', { name: 'Assign publisher' }).click();
-  await selectAssignee(sales.page, 'Publisher', accounts.publisher.email);
-  await sales.page.getByRole('button', { name: 'Assign', exact: true }).click();
-
-  const publisher = await authenticatedPage(browser, baseURL, accounts.publisher);
-  sessions.push(publisher.context);
-  await openPromotion(publisher.page, promotionHash, title);
-  await publisher.page.getByRole('button', { name: 'Start publishing' }).click();
-  await publisher.page.getByRole('button', { name: 'Record publication' }).click();
-  await publisher.page.getByLabel('Destination').fill('@e2e_client');
-  await publisher.page
+  await creator.page.getByRole('button', { name: 'Start publishing' }).click();
+  await creator.page.getByRole('button', { name: 'Record publication' }).click();
+  await creator.page.getByLabel('Destination').fill('@e2e_client');
+  await creator.page
     .getByLabel('Publication URL')
     .fill(`https://www.instagram.com/p/e2e-${suffix}`);
-  await publisher.page.getByLabel('Approved artifact').selectOption({ label: 'E2E creative v2' });
-  await publisher.page.getByRole('button', { name: 'Record publication' }).last().click();
-  await expect(publisher.page.getByText('Published', { exact: true })).toBeVisible();
+  await creator.page.getByLabel('Approved artifact').selectOption({ label: 'E2E creative v2' });
+  await creator.page.getByRole('button', { name: 'Record publication' }).last().click();
+  await expect(creator.page.getByText('Published', { exact: true })).toBeVisible();
 
   await openPromotion(sales.page, promotionHash, title);
   await sales.page.getByRole('tab', { name: /Publishing/ }).click();
@@ -206,14 +187,12 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await sales.page.getByRole('button', { name: 'Complete verification' }).click();
   await expect(sales.page.getByText('Ready for invoicing', { exact: true })).toBeVisible();
 
-  const finance = await authenticatedPage(browser, baseURL, accounts.finance);
-  sessions.push(finance.context);
-  await openPromotion(finance.page, promotionHash, title);
-  await finance.page.getByRole('button', { name: 'Register invoice' }).first().click();
-  await finance.page.getByLabel('Amount').fill('4200');
-  await finance.page.getByLabel('Invoice number').fill(`E2E-${suffix}`);
-  await finance.page.getByRole('button', { name: 'Register invoice' }).last().click();
-  await expect(finance.page.getByText('Invoiced', { exact: true })).toBeVisible();
+  await openPromotion(sales.page, promotionHash, title);
+  await sales.page.getByRole('button', { name: 'Register invoice' }).first().click();
+  await sales.page.getByLabel('Amount').fill('4200');
+  await sales.page.getByLabel('Invoice number').fill(`E2E-${suffix}`);
+  await sales.page.getByRole('button', { name: 'Register invoice' }).last().click();
+  await expect(sales.page.getByText('Invoiced', { exact: true })).toBeVisible();
 
   await Promise.all(sessions.map((context) => context.close()));
 });
