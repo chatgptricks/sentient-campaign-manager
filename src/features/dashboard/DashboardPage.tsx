@@ -69,7 +69,7 @@ export function DashboardPage() {
   const publishing = query.data.promotions.filter((promotion) =>
     ['PUBLISHING_IN_PROGRESS'].includes(promotion.status),
   ).length;
-  const visibleTotal = Math.max(total, 1);
+  const activeTotal = Math.max(active, 1);
   const workflowSegments = [
     {
       label: 'Design',
@@ -176,25 +176,21 @@ export function DashboardPage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-bold tracking-[0.14em] text-[var(--text-dim)] uppercase">
-                    Workflow distribution
+                    Active workflow by stage
                   </p>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    Where active work is currently sitting.
+                    How many campaigns are currently waiting in each production stage.
                   </p>
                 </div>
                 <div className="grid size-10 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">
                   <Megaphone className="size-4" />
                 </div>
               </div>
-              <div className="mt-6 flex h-3 overflow-hidden rounded-full bg-[var(--surface)]">
-                {workflowSegments.map((segment, index) => (
-                  <span
-                    key={segment.label}
-                    className={index % 2 === 0 ? 'bg-[var(--acid)]' : 'bg-[var(--acid-ink)]/45'}
-                    style={{ width: `${Math.max((segment.value / visibleTotal) * 100, 3)}%` }}
-                    aria-label={`${segment.label}: ${segment.value}`}
-                  />
-                ))}
+              <div className="mt-6 rounded-lg border border-[var(--border)] bg-white/35 px-4 py-3">
+                <p className="text-xs leading-5 text-[var(--text-muted)]">
+                  Read this as a queue map: higher numbers mean more campaigns are sitting in that
+                  stage right now.
+                </p>
               </div>
               <div className="mt-6 divide-y divide-[var(--border)]">
                 {workflowSegments.map((segment) => (
@@ -222,7 +218,7 @@ export function DashboardPage() {
                         <div
                           className="h-full rounded-full bg-[var(--acid)]"
                           style={{
-                            width: `${Math.min((segment.value / visibleTotal) * 100, 100)}%`,
+                            width: `${Math.min((segment.value / activeTotal) * 100, 100)}%`,
                           }}
                         />
                       </div>
@@ -258,7 +254,7 @@ export function DashboardPage() {
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface)]">
                         <div
                           className="h-full rounded-full bg-[var(--acid)]"
-                          style={{ width: `${Math.min((item.value / visibleTotal) * 100, 100)}%` }}
+                          style={{ width: `${Math.min((item.value / activeTotal) * 100, 100)}%` }}
                         />
                       </div>
                       <p className="mt-1.5 text-xs text-[var(--text-dim)]">{item.detail}</p>
