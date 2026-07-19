@@ -175,7 +175,7 @@ export function AssignmentDialog({
             </option>
             {query.data?.map((profile) => (
               <option key={profile.id} value={profile.id}>
-                {profile.displayName} · {profile.email}
+                {profile.displayName}
               </option>
             ))}
           </Select>
