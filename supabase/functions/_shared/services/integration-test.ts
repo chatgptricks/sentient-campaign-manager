@@ -69,39 +69,28 @@ async function testResend(fetcher: typeof fetch): Promise<IntegrationTestResult>
 
 async function testSlack(fetcher: typeof fetch): Promise<IntegrationTestResult> {
   const botToken = getEnv('SLACK_BOT_TOKEN');
-  const channelId = getEnv('SLACK_CHANNEL_ID');
   const webhookUrl = getEnv('SLACK_WEBHOOK_URL');
-  if (botToken && !channelId) {
-    return {
-      code: 'SLACK_CHANNEL_MISSING',
-      message: 'Slack has a bot token but no delivery channel is configured.',
-      provider: 'SLACK',
-      status: 'NOT_CONFIGURED',
-    };
-  }
   if (botToken) {
-    const response = await fetcher(
-      `https://slack.com/api/conversations.info?channel=${encodeURIComponent(channelId ?? '')}`,
-      {
-        method: 'GET',
-        redirect: 'error',
-        headers: { Authorization: `Bearer ${botToken}` },
-      },
-    );
+    const response = await fetcher('https://slack.com/api/auth.test', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${botToken}` },
+    });
     const payload = (await response.json().catch(() => ({}))) as {
-      channel?: { id?: unknown };
       ok?: boolean;
+      team?: string;
+      user?: string;
+      error?: string;
     };
-    return response.ok && payload.ok && payload.channel?.id === channelId
+    return response.ok && payload.ok
       ? {
-          code: 'SLACK_CHANNEL_ACCESS_OK',
-          message: 'Slack authenticated and the configured channel is accessible.',
+          code: 'SLACK_AUTH_OK',
+          message: `Slack authenticated for team '${payload.team ?? 'Sentient'}' as bot user '@${payload.user ?? 'bot'}'.`,
           provider: 'SLACK',
           status: 'CONNECTED',
         }
       : {
-          code: `SLACK_HTTP_${response.status}`,
-          message: 'Slack rejected access to the configured delivery channel.',
+          code: `SLACK_AUTH_FAILED_${payload.error ?? response.status}`,
+          message: `Slack authentication failed: ${payload.error ?? response.status}`,
           provider: 'SLACK',
           status: 'UNAVAILABLE',
         };
