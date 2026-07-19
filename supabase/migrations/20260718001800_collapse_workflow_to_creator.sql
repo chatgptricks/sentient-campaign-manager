@@ -152,7 +152,7 @@ as $$
 $$;
 
 create or replace function public.get_promotion_allowed_actions(promotion_id uuid)
-returns public.promotion_action[]
+returns text[]
 language plpgsql
 stable
 security definer
@@ -160,7 +160,7 @@ set search_path = ''
 as $$
 declare
   actor_id uuid := public._require_actor();
-  actions public.promotion_action[] := '{}';
+  actions text[] := array[]::text[];
   promotion public.promotions%rowtype;
   actor_is_admin boolean;
   can_manage boolean;
