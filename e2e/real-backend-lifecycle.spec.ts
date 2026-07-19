@@ -61,14 +61,16 @@ async function waitForResourceValidation(
   title: string,
   resourceName: string,
 ) {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     await processOutbox(adminPage);
+    await adminPage.waitForTimeout(500);
     await openPromotion(creatorPage, promotionHash, title);
     await creatorPage.getByRole('tab', { name: /Resources/ }).click();
     const resource = creatorPage
       .getByRole('heading', { name: resourceName })
       .locator('xpath=ancestor::article');
     if (await resource.getByText('VALID', { exact: true }).isVisible()) return;
+    await creatorPage.waitForTimeout(500);
   }
   throw new Error(`Resource validation did not complete for ${resourceName}.`);
 }
