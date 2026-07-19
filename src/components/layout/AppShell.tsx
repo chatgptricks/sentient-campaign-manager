@@ -64,7 +64,7 @@ export function AppShell({ children }: PropsWithChildren) {
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-5">{navigation}</div>
         <div className="border-t border-[var(--border)] p-4">
-          <p className="text-xs font-semibold text-[var(--text)]">Campaign Manager</p>
+          <p className="text-xs font-semibold text-[var(--text)]">Promotion Manager</p>
           <p className="mt-1 text-[11px] text-[var(--text-dim)]">Production workspace</p>
         </div>
       </aside>

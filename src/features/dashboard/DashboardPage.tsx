@@ -149,7 +149,7 @@ export function DashboardPage() {
                     {active}
                   </p>
                   <div className="pb-2">
-                    <p className="text-sm font-semibold text-[var(--text)]">active campaigns</p>
+                    <p className="text-sm font-semibold text-[var(--text)]">active promotions</p>
                     <p className="mt-1 text-xs text-[var(--text-dim)]">
                       {total} total · {query.data.counts.INVOICED ?? 0} completed
                     </p>
@@ -179,7 +179,7 @@ export function DashboardPage() {
                     Active workflow by stage
                   </p>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    How many campaigns are currently waiting in each production stage.
+                    How many promotions are currently waiting in each production stage.
                   </p>
                 </div>
                 <div className="grid size-10 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">

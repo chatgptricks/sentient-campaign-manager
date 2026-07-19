@@ -49,7 +49,7 @@ export function PromotionTable({
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
-        header: 'Campaign',
+        header: 'Promotion',
         cell: ({ row, getValue }) => (
           <div className="min-w-52">
             <Link
@@ -122,8 +122,8 @@ export function PromotionTable({
   if (promotions.length === 0) {
     return (
       <EmptyState
-        title="No campaigns found"
-        description="Adjust the filters or create the first campaign for this workspace."
+        title="No promotions found"
+        description="Adjust the filters or create the first promotion for this workspace."
         action={emptyAction}
       />
     );
@@ -207,7 +207,7 @@ export function PromotionTable({
                 {
                   items: [
                     {
-                      label: 'Open campaign',
+                      label: 'Open promotion',
                       description: 'Go to the full workflow record.',
                       icon: <ExternalLink className="size-4" />,
                       onSelect: () => {
@@ -215,16 +215,16 @@ export function PromotionTable({
                       },
                     },
                     {
-                      label: 'Copy campaign ID',
+                      label: 'Copy promotion ID',
                       description: 'Useful for debugging and audit references.',
                       icon: <Copy className="size-4" />,
                       onSelect: () => {
                         void navigator.clipboard.writeText(menu.promotion.id);
-                        toast.success('Campaign ID copied.');
+                        toast.success('Promotion ID copied.');
                       },
                     },
                     {
-                      label: 'Copy campaign summary',
+                      label: 'Copy promotion summary',
                       description: 'Title, client, status, owner, and due date.',
                       icon: <Copy className="size-4" />,
                       onSelect: () => {
@@ -237,7 +237,7 @@ export function PromotionTable({
                           `ID: ${menu.promotion.id}`,
                         ].join('\n');
                         void navigator.clipboard.writeText(summary);
-                        toast.success('Campaign summary copied.');
+                        toast.success('Promotion summary copied.');
                       },
                     },
                   ],
@@ -245,9 +245,9 @@ export function PromotionTable({
                 {
                   items: [
                     {
-                      label: 'Delete campaign',
+                      label: 'Delete promotion',
                       description:
-                        'Cancels the campaign and removes it from the active list while preserving audit history.',
+                        'Cancels the promotion and removes it from the active list while preserving audit history.',
                       icon: <Trash2 className="size-4" />,
                       danger: true,
                       disabled: !onDelete || menu.promotion.status === 'CANCELLED',

@@ -29,7 +29,7 @@ const promotion: Promotion = {
 };
 
 describe('PromotionTable', () => {
-  it('shows the campaign owner', () => {
+  it('shows the promotion owner', () => {
     render(
       <MemoryRouter>
         <PromotionTable promotions={[promotion]} />

@@ -15,7 +15,7 @@ export function NoAccessPage() {
           No application role assigned
         </h1>
         <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-          {profile?.email} is authenticated, but an administrator must assign at least one Campaign
+          {profile?.email} is authenticated, but an administrator must assign at least one Promotion
           Manager role.
         </p>
         <Button className="mt-6" variant="secondary" onClick={() => void signOut()}>

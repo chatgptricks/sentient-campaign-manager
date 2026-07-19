@@ -34,7 +34,7 @@ export function PromotionsPage() {
       await campaignService.cancelPromotion(
         promotion.id,
         promotion.version,
-        'Deleted from the campaign context menu.',
+        'Deleted from the promotion context menu.',
       );
     },
     onSuccess: async () => {
@@ -43,7 +43,7 @@ export function PromotionsPage() {
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
         queryClient.invalidateQueries({ queryKey: ['calendar'] }),
       ]);
-      toast.success('Campaign deleted from active work.');
+      toast.success('Promotion deleted from active work.');
     },
     onError: (error) => toast.error(getFriendlyError(error)),
   });
@@ -51,15 +51,15 @@ export function PromotionsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Campaign pipeline"
-        title="Campaigns"
-        description="Every client campaign, assignment, approval, publication, and invoice in one auditable workflow."
+        eyebrow="Promotion pipeline"
+        title="Promotions"
+        description="Every client promotion, assignment, approval, publication, and invoice in one auditable workflow."
         actions={
           canCreate ? (
             <Button asChild>
               <Link to="/promotions/new">
                 <Plus className="size-4" />
-                New campaign
+                New promotion
               </Link>
             </Button>
           ) : undefined
@@ -74,8 +74,8 @@ export function PromotionsPage() {
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search campaign or client…"
-              aria-label="Search campaigns"
+              placeholder="Search promotion or client…"
+              aria-label="Search promotions"
             />
           </div>
           <div className="relative sm:w-64">
@@ -112,7 +112,7 @@ export function PromotionsPage() {
             onDelete={(promotion) => {
               if (
                 window.confirm(
-                  `Delete "${promotion.title}" from active campaigns? The audit trail will be preserved.`,
+                  `Delete "${promotion.title}" from active promotions? The audit trail will be preserved.`,
                 )
               )
                 deletePromotion.mutate(promotion);
@@ -120,7 +120,7 @@ export function PromotionsPage() {
             emptyAction={
               canCreate ? (
                 <Button asChild>
-                  <Link to="/promotions/new">Create campaign</Link>
+                  <Link to="/promotions/new">Create promotion</Link>
                 </Button>
               ) : undefined
             }

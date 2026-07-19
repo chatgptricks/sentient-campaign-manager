@@ -54,7 +54,7 @@ export function LoginPage() {
         <img className="relative h-8 w-auto self-start" src={logoPath()} alt="Sentient" />
         <div className="relative max-w-2xl">
           <p className="text-xs font-bold tracking-[0.18em] text-[var(--acid-ink)] uppercase">
-            Campaign operations
+            Promotion operations
           </p>
           <h1 className="mt-5 text-5xl leading-[1.02] font-semibold tracking-[-0.055em] text-[var(--paper)] xl:text-6xl">
             Every promotion.
@@ -95,7 +95,7 @@ export function LoginPage() {
                 Internal access
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[var(--text)]">
-                {mode === 'recovery' ? 'Reset your password' : 'Sign in to Campaign Manager'}
+                {mode === 'recovery' ? 'Reset your password' : 'Sign in to Promotion Manager'}
               </h1>
               <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
                 {mode === 'recovery'

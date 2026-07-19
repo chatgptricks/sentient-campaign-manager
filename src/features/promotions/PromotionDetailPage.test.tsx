@@ -12,7 +12,7 @@ const baseResource: ResourceLink = {
   resourceType: 'SOCIAL_CREATIVE',
   url: 'https://www.canva.com/design/example',
   storagePath: null,
-  displayName: 'Campaign creative',
+  displayName: 'Promotion creative',
   validationStatus: 'VALID',
   validationMessage: null,
   attachedByName: 'Creator',

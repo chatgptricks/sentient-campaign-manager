@@ -35,7 +35,7 @@ export function PasswordSetupPage() {
             <CheckCircle2 className="size-7 text-[var(--acid-ink)]" />
             <h1 className="mt-5 text-2xl font-semibold text-[var(--text)]">Password saved</h1>
             <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-              Your account is ready. Continue to Campaign Manager.
+              Your account is ready. Continue to Promotion Manager.
             </p>
             <Button className="mt-6" onClick={() => window.location.reload()}>
               Continue

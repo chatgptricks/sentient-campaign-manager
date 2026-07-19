@@ -116,7 +116,7 @@ describe('manual-adapter development workflow', () => {
     });
   });
 
-  it('stores campaign planning metadata with the parent campaign', async () => {
+  it('stores promotion planning metadata with the parent promotion', async () => {
     const client = await demoCampaignService.createClient({
       name: 'Metadata Test Client',
       billingEmail: '',
@@ -124,7 +124,7 @@ describe('manual-adapter development workflow', () => {
     });
     const promotion = await demoCampaignService.createPromotion({
       clientId: client.id,
-      title: 'Metadata test campaign',
+      title: 'Metadata test promotion',
       description: 'Structured planning metadata should survive the create flow.',
       dueDate: '2026-08-02',
       metadata: {

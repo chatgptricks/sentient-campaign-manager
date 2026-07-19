@@ -28,7 +28,7 @@ export const clientSchema = z.object({
 });
 
 export const campaignMetadataSchema = z.object({
-  campaignType: z.string().trim().min(2, 'Campaign type is required.').max(80),
+  campaignType: z.string().trim().min(2, 'Promotion type is required.').max(80),
   scheduledDate: z
     .string()
     .refine(

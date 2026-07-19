@@ -43,7 +43,7 @@ export function CreatePromotionPage() {
       description: '',
       dueDate: /^\d{4}-\d{2}-\d{2}$/.test(calendarDueDate) ? calendarDueDate : '',
       metadata: {
-        campaignType: 'Social campaign',
+        campaignType: 'Social promotion',
         scheduledDate: /^\d{4}-\d{2}-\d{2}$/.test(calendarDueDate) ? calendarDueDate : '',
         priority: 'NORMAL',
         briefUrl: '',
@@ -85,8 +85,8 @@ export function CreatePromotionPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       <PageHeader
         eyebrow="Sales intake"
-        title="Create campaign"
-        description="Start the campaign in Draft with the brief, due date, channels, and publishing network needed for the next handoff."
+        title="Create promotion"
+        description="Start the promotion in Draft with the brief, due date, channels, and publishing network needed for the next handoff."
         actions={
           <Button asChild variant="ghost">
             <Link to="/promotions">
@@ -138,7 +138,7 @@ export function CreatePromotionPage() {
               />
             </div>
             <Field
-              label="Campaign name"
+              label="Promotion name"
               htmlFor="promotion-title"
               error={form.formState.errors.title?.message}
             >
@@ -157,7 +157,7 @@ export function CreatePromotionPage() {
             >
               <Textarea
                 id="promotion-description"
-                placeholder="Campaign objective, formats, channels, and constraints…"
+                placeholder="Promotion objective, formats, channels, and constraints…"
                 aria-invalid={Boolean(form.formState.errors.description)}
                 {...form.register('description')}
               />
@@ -178,7 +178,7 @@ export function CreatePromotionPage() {
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field
-                label="Campaign type"
+                label="Promotion type"
                 htmlFor="promotion-campaign-type"
                 error={form.formState.errors.metadata?.campaignType?.message}
               >
@@ -258,7 +258,7 @@ export function CreatePromotionPage() {
             <Field
               label="Channel accounts"
               htmlFor="promotion-publishing-accounts"
-              hint="Choose the predefined accounts that become the campaign checklist."
+              hint="Choose the predefined accounts that become the promotion checklist."
             >
               <div id="promotion-publishing-accounts" className="grid gap-2 sm:grid-cols-2">
                 {(accountsQuery.data ?? []).map((account: PublishingAccount) => {
@@ -338,7 +338,7 @@ export function CreatePromotionPage() {
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
                 <Plus className="size-4" />
-                {mutation.isPending ? 'Creating…' : 'Create campaign'}
+                {mutation.isPending ? 'Creating…' : 'Create promotion'}
               </Button>
             </div>
           </form>

@@ -102,7 +102,7 @@ function WeeklyCalendar({ promotions }: { promotions: Promotion[] }) {
   return (
     <CalendarViewFrame
       title="Weekly operational view"
-      description="Work through the active campaign queue with the current owner and next handoff visible."
+      description="Work through the active promotion queue with the current owner and next handoff visible."
       action={
         <div className="flex min-h-10 items-center gap-1">
           <Button
@@ -171,14 +171,14 @@ function WeeklyCalendar({ promotions }: { promotions: Promotion[] }) {
                       </p>
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span className="text-[10px] text-[var(--text-dim)]">
-                          Social campaign · Multi-channel
+                          Social promotion · Multi-channel
                         </span>
                         <PromotionStatusBadge status={promotion.status} />
                       </div>
                     </Link>
                   ))
                 ) : (
-                  <p className="py-8 text-center text-xs text-[var(--text-dim)]">No campaigns</p>
+                  <p className="py-8 text-center text-xs text-[var(--text-dim)]">No promotions</p>
                 )}
               </div>
             </section>
@@ -212,8 +212,8 @@ function ClientCalendarView({ promotions }: { promotions: Promotion[] }) {
 
   return (
     <CalendarViewFrame
-      title="Client campaign history"
-      description="Review upcoming, active, completed, and archived campaign work by client."
+      title="Client promotion history"
+      description="Review upcoming, active, completed, and archived promotion work by client."
       action={
         <Select
           aria-label="Filter calendar by client"
@@ -242,7 +242,7 @@ function ClientCalendarView({ promotions }: { promotions: Promotion[] }) {
                   {items[0]!.clientName}
                 </h3>
                 <p className="mt-1 text-xs text-[var(--text-dim)]">
-                  {items.length} campaign{items.length === 1 ? '' : 's'} in history
+                  {items.length} promotion{items.length === 1 ? '' : 's'} in history
                 </p>
               </div>
               <Link
@@ -310,13 +310,13 @@ export function CalendarPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Campaign planning"
+        eyebrow="Promotion planning"
         title="Calendar"
-        description="Plan campaign volume monthly, work active handoffs weekly, or review the full history by client."
+        description="Plan promotion volume monthly, work active handoffs weekly, or review the full history by client."
         actions={
           canCreate ? (
             <Button asChild>
-              <Link to="/promotions/new">New campaign</Link>
+              <Link to="/promotions/new">New promotion</Link>
             </Button>
           ) : undefined
         }
@@ -342,8 +342,8 @@ export function CalendarPage() {
       </div>
       {mode === 'month' ? (
         <CalendarPanel
-          title="Monthly campaign overview"
-          description="Click a date to review scheduled campaigns, or use right-click for contextual actions."
+          title="Monthly promotion overview"
+          description="Click a date to review scheduled promotions, or use right-click for contextual actions."
           events={events}
           accent="posting"
           addHrefForDate={canCreate ? (date) => `/promotions/new?dueDate=${date}` : undefined}

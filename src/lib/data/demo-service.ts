@@ -188,7 +188,7 @@ const publishingAccounts: PublishingAccount[] = [
     partnerName: 'Travel Network',
     active: false,
     defaultPublisherName: null,
-    notes: 'Retained for historical campaign records.',
+    notes: 'Retained for historical promotion records.',
   },
 ];
 
@@ -225,8 +225,7 @@ function promotion(
     clientId,
     clientName,
     title,
-    description:
-      'Multi-channel promotional campaign managed through Sentient’s verified creative workflow.',
+    description: 'Multi-channel promotion managed through Sentient’s verified creative workflow.',
     status,
     salesOwnerId: ids.sales,
     salesOwnerName: 'Maya Chen',
@@ -320,9 +319,9 @@ const resourceFor = (promotionId: string, index = 1): ResourceLink => ({
   promotionId,
   provider: 'CANVA',
   resourceType: 'SOCIAL_CREATIVE',
-  url: 'https://www.canva.com/design/demo-sentient-campaign',
+  url: 'https://www.canva.com/design/demo-sentient-promotion',
   storagePath: null,
-  displayName: index === 1 ? 'Campaign master creative' : `Creative revision ${index}`,
+  displayName: index === 1 ? 'Promotion master creative' : `Creative revision ${index}`,
   validationStatus: 'VALID',
   validationMessage: 'HTTPS URL and provider format verified.',
   attachedByName: 'Leo Martins',
@@ -336,7 +335,7 @@ const resourcesByPromotion = new Map<string, ResourceLink[]>(
 
 function metadataFromInput(promotionId: string, input?: CampaignMetadataInput): CampaignMetadata {
   const value = input ?? {
-    campaignType: 'Social campaign',
+    campaignType: 'Social promotion',
     scheduledDate: '',
     priority: 'NORMAL' as const,
     briefUrl: '',
@@ -865,7 +864,7 @@ export const demoCampaignService: CampaignService = {
         description: input.description || null,
         salesOwnerId: ids.sales,
         salesOwnerName:
-          profiles.find((profile) => profile.id === ids.sales)?.displayName ?? 'Campaign owner',
+          profiles.find((profile) => profile.id === ids.sales)?.displayName ?? 'Promotion owner',
         creatorId: null,
         creatorName: null,
         approverId: null,

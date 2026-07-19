@@ -161,7 +161,7 @@ export function ResourceAccessControl({
 function OverviewSection({ detail }: { detail: PromotionDetail }) {
   const { promotion, metadata } = detail;
   const assignments = [
-    { label: 'Campaign owner', name: promotion.salesOwnerName },
+    { label: 'Promotion owner', name: promotion.salesOwnerName },
     { label: 'Creator', name: promotion.creatorName },
   ];
   return (
@@ -205,7 +205,7 @@ function OverviewSection({ detail }: { detail: PromotionDetail }) {
       </Card>
       <Card className="xl:col-span-2">
         <CardHeader
-          title="Campaign operating brief"
+          title="Promotion operating brief"
           description="Structured planning metadata used by the weekly queue and publishing handoff."
         />
         <CardBody>
@@ -663,7 +663,7 @@ function PublishingSection({
       <Card>
         <CardHeader
           title="Publishing checklist"
-          description="Each selected account stays attached to the parent campaign until its publication is recorded."
+          description="Each selected account stays attached to the parent promotion until its publication is recorded."
           action={
             selectedAccounts.length ? (
               <Badge
@@ -719,7 +719,7 @@ function PublishingSection({
         ) : (
           <CardBody>
             <p className="text-sm text-[var(--text-muted)]">
-              No channel accounts selected. Edit the campaign brief to build the checklist.
+              No channel accounts selected. Edit the promotion brief to build the checklist.
             </p>
           </CardBody>
         )}

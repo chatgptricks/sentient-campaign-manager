@@ -24,7 +24,7 @@ describe('supabaseCampaignService', () => {
             id: '20000000-0000-4000-8000-000000000099',
             client_id: '10000000-0000-4000-8000-000000000099',
             client: { name: 'Test Client' },
-            title: 'Test Campaign',
+            title: 'Test Promotion',
             description: null,
             status: 'DRAFT',
             sales_owner_id: '00000000-0000-4000-8000-000000000002',
@@ -46,7 +46,7 @@ describe('supabaseCampaignService', () => {
         return {
           data: {
             promotion_id: '20000000-0000-4000-8000-000000000099',
-            campaign_type: 'Social campaign',
+            campaign_type: 'Social promotion',
             scheduled_date: '2026-08-01',
             priority: 'NORMAL',
             brief_url: null,
@@ -66,11 +66,11 @@ describe('supabaseCampaignService', () => {
     await expect(
       createPromotion({
         clientId: '10000000-0000-4000-8000-000000000099',
-        title: 'Test Campaign',
+        title: 'Test Promotion',
         description: '',
         dueDate: '',
         metadata: {
-          campaignType: 'Social campaign',
+          campaignType: 'Social promotion',
           scheduledDate: '2026-08-01',
           priority: 'NORMAL',
           briefUrl: '',

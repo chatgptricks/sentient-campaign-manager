@@ -39,7 +39,7 @@ export function PublishingAccountsPage() {
       <PageHeader
         eyebrow="Publishing network"
         title="Channels"
-        description="Controlled Instagram, X, and LinkedIn account records used to build one publishing checklist per campaign."
+        description="Controlled Instagram, X, and LinkedIn account records used to build one publishing checklist per promotion."
       />
       <Card>
         <CardHeader

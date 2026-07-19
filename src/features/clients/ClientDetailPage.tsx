@@ -58,7 +58,7 @@ export function ClientDetailPage() {
       <PageHeader
         eyebrow="Client record"
         title={client.name}
-        description="Campaign history, operational ownership, and external resources associated with this client."
+        description="Promotion history, operational ownership, and external resources associated with this client."
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)]">
         <Card>
@@ -100,8 +100,8 @@ export function ClientDetailPage() {
         </Card>
         <Card>
           <CardHeader
-            title="Campaign history"
-            description={`${promotions.length} campaign${promotions.length === 1 ? '' : 's'} linked to this client.`}
+            title="Promotion history"
+            description={`${promotions.length} promotion${promotions.length === 1 ? '' : 's'} linked to this client.`}
           />
           {promotions.length ? (
             <div className="divide-y divide-[var(--border)]">
@@ -127,7 +127,7 @@ export function ClientDetailPage() {
           ) : (
             <CardBody>
               <p className="text-sm text-[var(--text-muted)]">
-                No campaigns are linked to this client yet.
+                No promotions are linked to this client yet.
               </p>
             </CardBody>
           )}

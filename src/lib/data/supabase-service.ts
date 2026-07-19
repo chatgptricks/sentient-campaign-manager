@@ -122,7 +122,7 @@ function mapCampaignMetadata(raw: unknown): CampaignMetadata {
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
   return {
     promotionId: textValue(row.promotion_id),
-    campaignType: textValue(row.campaign_type, 'Social campaign'),
+    campaignType: textValue(row.campaign_type, 'Social promotion'),
     scheduledDate: nullableText(row.scheduled_date),
     priority: textValue(row.priority, 'NORMAL') as CampaignMetadata['priority'],
     briefUrl: nullableText(row.brief_url),

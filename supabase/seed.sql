@@ -226,6 +226,6 @@ values
     'https://x.com/travel-network',
     'EXTERNAL_PARTNER',
     null,
-    'Retained for historical campaign records.'
+    'Retained for historical promotion records.'
   )
 on conflict (account_url) do nothing;

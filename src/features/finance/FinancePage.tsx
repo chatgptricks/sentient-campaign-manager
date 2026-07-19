@@ -43,7 +43,7 @@ export function FinancePage() {
       <PageHeader
         eyebrow="Sales workspace"
         title="Sales"
-        description="Invoice and payment milestones for verified campaigns."
+        description="Invoice and payment milestones for verified promotions."
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>
@@ -74,14 +74,14 @@ export function FinancePage() {
       </div>
       <CalendarPanel
         title="Financial calendar"
-        description="Invoice creation and payment milestones linked to the parent campaign."
+        description="Invoice creation and payment milestones linked to the parent promotion."
         events={financeEvents}
         accent="finance"
       />
       <Card>
         <CardHeader
           title="Invoice reminders"
-          description="Open the parent campaign to view or update the protected financial record."
+          description="Open the parent promotion to view or update the protected financial record."
         />
         {financeEvents.length ? (
           <div className="divide-y divide-[var(--border)]">

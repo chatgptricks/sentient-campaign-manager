@@ -23,7 +23,7 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   { label: 'Overview', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Calendar', to: '/calendar', icon: CalendarRange },
-  { label: 'Campaigns', to: '/campaigns', icon: Megaphone },
+  { label: 'Promotions', to: '/campaigns', icon: Megaphone },
   { label: 'Clients', to: '/clients', icon: Building2 },
   {
     label: 'Channels',

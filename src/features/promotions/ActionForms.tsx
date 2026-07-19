@@ -46,10 +46,10 @@ const assignmentMeta: Record<
   { title: string; description: string; role: RoleCode; label: string }
 > = {
   SALES_OWNER: {
-    title: 'Assign campaign owner',
+    title: 'Assign promotion owner',
     description: 'The owner remains responsible for client coordination.',
     role: 'SALES',
-    label: 'Campaign owner',
+    label: 'Promotion owner',
   },
   CREATOR: {
     title: 'Assign creator',
@@ -315,7 +315,7 @@ export function ResourceDialog({
           >
             <Input
               id="resource-name"
-              placeholder="Campaign master creative"
+              placeholder="Promotion master creative"
               {...form.register('displayName')}
             />
           </Field>

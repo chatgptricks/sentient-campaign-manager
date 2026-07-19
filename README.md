@@ -1,6 +1,6 @@
-# Sentient Campaign Manager
+# Sentient Promotion Manager
 
-Sentient Campaign Manager is the internal system for moving a client promotion from Sales intake through creative work, approval, publishing, verification, and Finance. The React application is static and GitHub Pages-compatible. Supabase owns Auth, PostgreSQL, RLS, private Storage, transactional commands, Edge Functions, Cron, and the auditable outbox.
+Sentient Promotion Manager is the internal system for moving a client promotion from Sales intake through creative work, approval, publishing, verification, and Finance. The React application is static and GitHub Pages-compatible. Supabase owns Auth, PostgreSQL, RLS, private Storage, transactional commands, Edge Functions, Cron, and the auditable outbox.
 
 The complete internal workflow is implemented. External creative providers, publishing platforms, and accounting systems currently use explicit manual adapters: the application records work completed outside the system and never pretends that it published or invoiced automatically.
 
