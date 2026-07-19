@@ -62,6 +62,7 @@ export function ContextMenu({
       className="fixed z-[70] w-68 overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1.5 shadow-2xl"
       style={{ left: Math.max(8, left), top: Math.max(8, top) }}
       onClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
       onContextMenu={(event) => event.preventDefault()}
     >
       {groups.map((group, groupIndex) => (
@@ -82,7 +83,15 @@ export function ContextMenu({
                   : 'text-[var(--text)] hover:bg-[var(--surface-hover)]',
                 item.disabled && 'cursor-not-allowed opacity-45 hover:bg-transparent',
               )}
-              onClick={() => {
+              onClick={(event) => {
+                if (event.detail !== 0) return;
+                if (item.disabled) return;
+                onClose();
+                item.onSelect();
+              }}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 if (item.disabled) return;
                 onClose();
                 item.onSelect();

@@ -466,7 +466,7 @@ export const supabaseCampaignService: CampaignService = {
       supabase
         .from('approval_submissions')
         .select(
-          '*, resource:promotion_resource_links!approval_submissions_resource_link_id_fkey(display_name), submitter:profiles!approval_submissions_submitted_by_fkey(display_name), decisions:approval_decisions(*, decider:profiles!approval_decisions_decided_by_fkey(display_name))',
+          '*, resource:promotion_resource_links!approval_submissions_resource_link_id_fkey(display_name), submitter:profiles!approval_submissions_submitted_by_fkey(display_name), decisions:approval_decisions!approval_decisions_approval_submission_id_fkey(*, decider:profiles!approval_decisions_decided_by_fkey(display_name))',
         )
         .eq('promotion_id', id)
         .order('submission_number', { ascending: false }),
