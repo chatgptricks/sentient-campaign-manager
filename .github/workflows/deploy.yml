@@ -146,7 +146,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$(jq -n \
               --arg site_url "$PUBLIC_APP_URL" \
-              '{site_url: $site_url, uri_allow_list: [$site_url], disable_signup: true}')"
+              '{site_url: $site_url, uri_allow_list: $site_url, disable_signup: true}')"
 
   pages:
     name: Deploy GitHub Pages
