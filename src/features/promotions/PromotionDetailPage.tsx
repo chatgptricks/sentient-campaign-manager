@@ -1463,7 +1463,7 @@ export function PromotionDetailPage() {
           <Tabs.Content value="finance" className="mt-6 focus-visible:outline-none">
             <FinanceSection
               detail={detail}
-              canManage={hasAnyRole(profile?.roles ?? [], ['FINANCE'])}
+              canManage={hasAnyRole(profile?.roles ?? [], ['SALES', 'FINANCE'])}
               onCreate={() => setDialog({ type: 'invoice' })}
               onIssue={() => setDialog({ type: 'issue-invoice' })}
               onSetStatus={(status) => {

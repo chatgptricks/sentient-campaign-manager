@@ -103,7 +103,7 @@ async function createPayloadNotification(
       .from('user_roles')
       .select('user_id,profiles!inner(status),roles!inner(code)')
       .eq('profiles.status', 'ACTIVE')
-      .in('roles.code', ['FINANCE', 'ADMINISTRATOR']);
+      .in('roles.code', ['SALES', 'FINANCE', 'ADMINISTRATOR']);
     if (error) throw databaseError(error, 'Finance notification recipients could not be loaded.');
     for (const row of data ?? []) recipients.add(row.user_id);
   }

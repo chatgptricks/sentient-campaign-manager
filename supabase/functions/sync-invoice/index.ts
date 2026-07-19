@@ -11,7 +11,7 @@ type SyncInvoiceBody = { invoiceId?: string; invoice_id?: string };
 
 export const handleRequest = functionHandler('sync-invoice', async (request) => {
   assertMethod(request);
-  await requireInternalOrRoles(request, ['FINANCE', 'ADMINISTRATOR']);
+  await requireInternalOrRoles(request, ['SALES', 'FINANCE', 'ADMINISTRATOR']);
   const body = await readJson<SyncInvoiceBody>(request);
   const invoiceId = body.invoiceId ?? body.invoice_id;
   assertUuid(invoiceId, 'invoiceId');
