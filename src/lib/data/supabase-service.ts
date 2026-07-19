@@ -47,6 +47,10 @@ function nullableText(value: unknown) {
   return typeof value === 'string' ? value : null;
 }
 
+function requestHeaders(scope: string) {
+  return { 'idempotency-key': `${scope}:${crypto.randomUUID()}` };
+}
+
 function numberValue(value: unknown, fallback = 0) {
   return typeof value === 'number' ? value : fallback;
 }
@@ -680,6 +684,7 @@ export const supabaseCampaignService: CampaignService = {
         displayName: input.displayName,
         roles: input.roles,
       },
+      headers: requestHeaders('invite-user'),
     });
     await assertFunctionSuccess(error);
   },
@@ -693,6 +698,7 @@ export const supabaseCampaignService: CampaignService = {
         temporaryPassword: input.temporaryPassword,
         roles: input.roles,
       },
+      headers: requestHeaders('create-user'),
     });
     await assertFunctionSuccess(error);
   },
@@ -700,6 +706,7 @@ export const supabaseCampaignService: CampaignService = {
   async replaceUserRoles(profileId, roles) {
     const { error } = await supabase.functions.invoke('admin-users', {
       body: { action: 'replace_roles', userId: profileId, roles },
+      headers: requestHeaders('replace-user-roles'),
     });
     await assertFunctionSuccess(error);
   },
@@ -707,6 +714,7 @@ export const supabaseCampaignService: CampaignService = {
   async setProfileStatus(profileId, status) {
     const { error } = await supabase.functions.invoke('admin-users', {
       body: { action: 'set_status', userId: profileId, status },
+      headers: requestHeaders('set-profile-status'),
     });
     await assertFunctionSuccess(error);
   },
@@ -714,6 +722,7 @@ export const supabaseCampaignService: CampaignService = {
   async processOutbox() {
     const { data, error } = await supabase.functions.invoke('process-outbox', {
       body: { mode: 'manual', batchSize: 25 },
+      headers: requestHeaders('process-outbox'),
     });
     await assertFunctionSuccess(error);
     const row = asRow(data);
@@ -727,6 +736,7 @@ export const supabaseCampaignService: CampaignService = {
   async testIntegration(provider: string) {
     const { data, error } = await supabase.functions.invoke('test-integration', {
       body: { provider },
+      headers: requestHeaders('test-integration'),
     });
     await assertFunctionSuccess(error);
     const row = asRow(data);
