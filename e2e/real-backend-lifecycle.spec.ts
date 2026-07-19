@@ -8,9 +8,9 @@ const localCredential = (email: string): ProductionCredential => ({
   password: 'SentientLocal!2026',
 });
 const localAccounts = {
-  admin: localCredential('admin@sentient.local'),
-  sales: localCredential('sales@sentient.local'),
-  creator: localCredential('creator@sentient.local'),
+  admin: localCredential('esteban@sentientagency.io'),
+  sales: localCredential('sergio@sentientagency.io'),
+  creator: localCredential('santiagoflhi@gmail.com'),
 };
 
 test.skip(!realBackend, 'Requires a freshly reset local Supabase stack.');

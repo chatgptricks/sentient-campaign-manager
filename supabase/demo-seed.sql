@@ -3,9 +3,9 @@
 
 do $$
 declare
-  admin_id uuid := '11111111-1111-4111-8111-111111111111'::uuid;
-  sales_id uuid := '22222222-2222-4222-8222-222222222222'::uuid;
-  creator_id uuid := '33333333-3333-4333-8333-333333333333'::uuid;
+  admin_id uuid := 'e1111111-1111-4111-8111-111111111111'::uuid; -- Esteban
+  sales_id uuid := 'e4444444-4444-4444-8444-444444444444'::uuid; -- Sergio
+  creator_id uuid := 'e7777777-7777-4777-8777-777777777777'::uuid; -- Santiago
   client_1 jsonb;
   client_2 jsonb;
   client_3 jsonb;
