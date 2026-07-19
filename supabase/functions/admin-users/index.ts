@@ -38,7 +38,11 @@ export const handleRequest = functionHandler('admin-users', async (request) => {
   if (action === 'invite') {
     const email = normalizeEmail(body.email);
     const emailHash = await sha256Hex(email);
-    const key = requestIdempotencyKey(request, `admin-user:invite:${emailHash}`);
+    const hasClientKey = Boolean(request.headers.get('idempotency-key')?.trim());
+    const fallback = hasClientKey
+      ? `admin-user:invite:${emailHash}`
+      : `admin-user:invite:${emailHash}:${crypto.randomUUID()}`;
+    const key = requestIdempotencyKey(request, fallback);
     const result = await inviteUser(
       serviceClient,
       auth,
@@ -55,7 +59,11 @@ export const handleRequest = functionHandler('admin-users', async (request) => {
   if (action === 'create') {
     const email = normalizeEmail(body.email);
     const emailHash = await sha256Hex(email);
-    const key = requestIdempotencyKey(request, `admin-user:create:${emailHash}`);
+    const hasClientKey = Boolean(request.headers.get('idempotency-key')?.trim());
+    const fallback = hasClientKey
+      ? `admin-user:create:${emailHash}`
+      : `admin-user:create:${emailHash}:${crypto.randomUUID()}`;
+    const key = requestIdempotencyKey(request, fallback);
     const result = await createUser(
       serviceClient,
       auth,
