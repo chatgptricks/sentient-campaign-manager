@@ -23,7 +23,6 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
-import { MetricCard } from '../../components/ui/MetricCard';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { PromotionStatusBadge } from '../promotions/PromotionStatusBadge';
 import { getCurrentOwnerName } from '../promotions/presentation-helpers';
@@ -70,6 +69,53 @@ export function DashboardPage() {
   const publishing = query.data.promotions.filter((promotion) =>
     ['PUBLISHING_IN_PROGRESS'].includes(promotion.status),
   ).length;
+  const visibleTotal = Math.max(total, 1);
+  const workflowSegments = [
+    {
+      label: 'Design',
+      value: waitingDesign,
+      detail: 'Creator queue and revisions',
+      icon: <Palette className="size-4" />,
+    },
+    {
+      label: 'Approval',
+      value: waitingApproval,
+      detail: 'Submitted creative reviews',
+      icon: <ShieldCheck className="size-4" />,
+    },
+    {
+      label: 'Ready',
+      value: readyToPublish,
+      detail: 'Approved publishing handoffs',
+      icon: <Send className="size-4" />,
+    },
+    {
+      label: 'Publishing',
+      value: publishing,
+      detail: 'Active account checklists',
+      icon: <Send className="size-4" />,
+    },
+  ];
+  const timingItems = [
+    {
+      label: 'Due today',
+      value: dueToday,
+      detail: 'Scheduled for today',
+      icon: <CalendarClock className="size-4" />,
+    },
+    {
+      label: 'Due this week',
+      value: dueThisWeek,
+      detail: 'Current production week',
+      icon: <Clock3 className="size-4" />,
+    },
+    {
+      label: 'Overdue',
+      value: query.data.overdue.length,
+      detail: 'Past due and active',
+      icon: <AlertCircle className="size-4" />,
+    },
+  ];
   return (
     <div className="space-y-8">
       <PageHeader
@@ -88,67 +134,150 @@ export function DashboardPage() {
         }
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Workspace metrics">
-        <MetricCard
-          label="Active promotions"
-          value={active}
-          detail={`${total} promotions in workspace`}
-          icon={<Layers3 className="size-5" />}
-        />
-        <MetricCard
-          label="Needs attention"
-          value={query.data.attention.length}
-          detail="Workflow handoffs waiting"
-          icon={<AlertCircle className="size-5" />}
-        />
-        <MetricCard
-          label="Overdue"
-          value={query.data.overdue.length}
-          detail="Past due and still active"
-          icon={<Clock3 className="size-5" />}
-        />
-        <MetricCard
-          label="Completed"
-          value={query.data.counts.INVOICED ?? 0}
-          detail="Promotions fully invoiced"
-          icon={<CheckCircle2 className="size-5" />}
-        />
-        <MetricCard
-          label="Due today"
-          value={dueToday}
-          detail="Campaigns scheduled today"
-          icon={<CalendarClock className="size-5" />}
-        />
-        <MetricCard
-          label="Due this week"
-          value={dueThisWeek}
-          detail="Campaigns in the current week"
-          icon={<Clock3 className="size-5" />}
-        />
-        <MetricCard
-          label="Waiting for design"
-          value={waitingDesign}
-          detail="Creator queue and revisions"
-          icon={<Palette className="size-5" />}
-        />
-        <MetricCard
-          label="Waiting for approval"
-          value={waitingApproval}
-          detail="Submitted creative reviews"
-          icon={<ShieldCheck className="size-5" />}
-        />
-        <MetricCard
-          label="Ready to publish"
-          value={readyToPublish}
-          detail="Approved publishing handoffs"
-          icon={<Send className="size-5" />}
-        />
-        <MetricCard
-          label="Currently publishing"
-          value={publishing}
-          detail="Active account checklists"
-          icon={<Send className="size-5" />}
-        />
+      <section aria-label="Workspace operational snapshot">
+        <Card className="overflow-hidden">
+          <div className="relative isolate grid gap-px bg-[var(--border)] lg:grid-cols-[minmax(18rem,.9fr)_minmax(0,1.6fr)_minmax(18rem,.9fr)]">
+            <div className="relative overflow-hidden bg-[var(--surface-raised)] p-6">
+              <div className="absolute top-0 right-0 size-44 translate-x-16 -translate-y-20 rounded-full bg-[var(--acid)]/12 blur-3xl" />
+              <div className="relative">
+                <div className="flex items-center gap-2 text-xs font-bold tracking-[0.14em] text-[var(--text-dim)] uppercase">
+                  <Layers3 className="size-4 text-[var(--acid-ink)]" />
+                  Workspace pulse
+                </div>
+                <div className="mt-7 flex items-end gap-4">
+                  <p className="text-6xl font-semibold tracking-[-0.06em] text-[var(--text)]">
+                    {active}
+                  </p>
+                  <div className="pb-2">
+                    <p className="text-sm font-semibold text-[var(--text)]">active campaigns</p>
+                    <p className="mt-1 text-xs text-[var(--text-dim)]">
+                      {total} total · {query.data.counts.INVOICED ?? 0} completed
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-7 space-y-3 border-t border-[var(--border)] pt-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs font-medium text-[var(--text-dim)]">Handoffs waiting</p>
+                    <p className="text-2xl font-semibold tracking-[-0.04em] text-[var(--text)]">
+                      {query.data.attention.length}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs font-medium text-[var(--text-dim)]">Overdue</p>
+                    <p className="text-2xl font-semibold tracking-[-0.04em] text-[var(--text)]">
+                      {query.data.overdue.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[var(--surface-raised)] p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold tracking-[0.14em] text-[var(--text-dim)] uppercase">
+                    Workflow distribution
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    Where active work is currently sitting.
+                  </p>
+                </div>
+                <div className="grid size-10 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">
+                  <Megaphone className="size-4" />
+                </div>
+              </div>
+              <div className="mt-6 flex h-3 overflow-hidden rounded-full bg-[var(--surface)]">
+                {workflowSegments.map((segment, index) => (
+                  <span
+                    key={segment.label}
+                    className={index % 2 === 0 ? 'bg-[var(--acid)]' : 'bg-[var(--acid-ink)]/45'}
+                    style={{ width: `${Math.max((segment.value / visibleTotal) * 100, 3)}%` }}
+                    aria-label={`${segment.label}: ${segment.value}`}
+                  />
+                ))}
+              </div>
+              <div className="mt-6 divide-y divide-[var(--border)]">
+                {workflowSegments.map((segment) => (
+                  <div
+                    key={segment.label}
+                    className="grid gap-3 py-4 sm:grid-cols-[minmax(8rem,.75fr)_minmax(0,1fr)] sm:items-center"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--acid)]/10 text-[var(--acid-ink)]">
+                        {segment.icon}
+                      </div>
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-2xl font-semibold tracking-[-0.04em] text-[var(--text)]">
+                            {segment.value}
+                          </p>
+                          <p className="text-xs font-bold tracking-[0.1em] text-[var(--text-dim)] uppercase">
+                            {segment.label}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--acid)]"
+                          style={{
+                            width: `${Math.min((segment.value / visibleTotal) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-[var(--text-dim)]">
+                        {segment.detail}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-[var(--surface-raised)] p-6">
+              <p className="text-xs font-bold tracking-[0.14em] text-[var(--text-dim)] uppercase">
+                Timing pressure
+              </p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                Deadlines that need operational awareness.
+              </p>
+              <div className="mt-6 space-y-4">
+                {timingItems.map((item) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-[var(--border)] bg-white/40 text-[var(--acid-ink)]">
+                      {item.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="text-sm font-semibold text-[var(--text)]">{item.label}</p>
+                        <p className="text-xl font-semibold tracking-[-0.04em] text-[var(--text)]">
+                          {item.value}
+                        </p>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--acid)]"
+                          style={{ width: `${Math.min((item.value / visibleTotal) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <p className="mt-1.5 text-xs text-[var(--text-dim)]">{item.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--acid-ink)]" />
+                  <p className="text-xs leading-5 text-[var(--text-muted)]">
+                    Completed work is kept in the total count, but the pulse focuses on active
+                    operational load.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,.75fr)]">
