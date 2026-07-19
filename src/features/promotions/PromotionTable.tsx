@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   createColumnHelper,
@@ -37,11 +37,15 @@ export function PromotionTable({
   onDelete,
 }: {
   promotions: Promotion[];
-  emptyAction?: React.ReactNode;
+  emptyAction?: ReactNode;
   onDelete?: (promotion: Promotion) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'updatedAt', desc: true }]);
   const [menu, setMenu] = useState<(ContextMenuState & { promotion: Promotion }) | null>(null);
+  const promotionById = useMemo(
+    () => new Map(promotions.map((promotion) => [promotion.id, promotion])),
+    [promotions],
+  );
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
@@ -104,6 +108,17 @@ export function PromotionTable({
     initialState: { pagination: { pageSize: 8 } },
   });
 
+  const openContextMenu = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const row = target?.closest<HTMLElement>('[data-promotion-id]');
+    const promotion = row ? promotionById.get(row.dataset.promotionId ?? '') : undefined;
+    if (!promotion) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setMenu({ x: event.clientX, y: event.clientY, promotion });
+  };
+
   if (promotions.length === 0) {
     return (
       <EmptyState
@@ -117,7 +132,7 @@ export function PromotionTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="data-table">
+        <table className="data-table" onContextMenuCapture={openContextMenu}>
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -148,13 +163,7 @@ export function PromotionTable({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  setMenu({ x: event.clientX, y: event.clientY, promotion: row.original });
-                }}
-              >
+              <tr key={row.id} data-promotion-id={row.original.id}>
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                 ))}

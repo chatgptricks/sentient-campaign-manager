@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -367,6 +367,20 @@ export function AdministrationPage() {
     },
     onError: (error) => toast.error(getFriendlyError(error)),
   });
+  const userById = useMemo(
+    () => new Map((users.data ?? []).map((user) => [user.id, user])),
+    [users.data],
+  );
+  const openUserContextMenu = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const row = target?.closest<HTMLElement>('[data-user-id]');
+    const user = row ? userById.get(row.dataset.userId ?? '') : undefined;
+    if (!user) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setUserMenu({ x: event.clientX, y: event.clientY, user });
+  };
 
   if (users.isLoading || health.isLoading) return <LoadingState label="Loading administration" />;
   if (users.error || health.error)
@@ -427,7 +441,7 @@ export function AdministrationPage() {
               description="Create accounts directly with a temporary password, or send an invitation. Each person has one hierarchical role level."
             />
             <div className="overflow-x-auto">
-              <table className="data-table">
+              <table className="data-table" onContextMenuCapture={openUserContextMenu}>
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -440,13 +454,7 @@ export function AdministrationPage() {
                 </thead>
                 <tbody>
                   {users.data?.map((user) => (
-                    <tr
-                      key={user.id}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        setUserMenu({ x: event.clientX, y: event.clientY, user });
-                      }}
-                    >
+                    <tr key={user.id} data-user-id={user.id}>
                       <td>
                         <p className="font-semibold text-[var(--text)]">{user.displayName}</p>
                         <p className="mt-1 text-xs text-[var(--text-dim)]">{user.email}</p>
