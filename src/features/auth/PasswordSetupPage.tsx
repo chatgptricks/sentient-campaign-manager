@@ -32,7 +32,7 @@ export function PasswordSetupPage() {
       <section className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-7 shadow-2xl">
         {complete ? (
           <div>
-            <CheckCircle2 className="size-7 text-[var(--acid)]" />
+            <CheckCircle2 className="size-7 text-[var(--acid-ink)]" />
             <h1 className="mt-5 text-2xl font-semibold text-[var(--text)]">Password saved</h1>
             <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
               Your account is ready. Continue to Campaign Manager.
@@ -43,7 +43,7 @@ export function PasswordSetupPage() {
           </div>
         ) : (
           <>
-            <KeyRound className="size-7 text-[var(--acid)]" />
+            <KeyRound className="size-7 text-[var(--acid-ink)]" />
             <h1 className="mt-5 text-2xl font-semibold text-[var(--text)]">
               {credentialSetup === 'invite' ? 'Create your password' : 'Reset your password'}
             </h1>

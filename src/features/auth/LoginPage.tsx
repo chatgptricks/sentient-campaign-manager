@@ -53,7 +53,7 @@ export function LoginPage() {
         <div className="absolute -top-32 -left-24 size-[34rem] rounded-full bg-[var(--acid)]/10 blur-[130px]" />
         <img className="relative h-8 w-auto self-start" src={logoPath()} alt="Sentient" />
         <div className="relative max-w-2xl">
-          <p className="text-xs font-bold tracking-[0.18em] text-[var(--acid)] uppercase">
+          <p className="text-xs font-bold tracking-[0.18em] text-[var(--acid-ink)] uppercase">
             Campaign operations
           </p>
           <h1 className="mt-5 text-5xl leading-[1.02] font-semibold tracking-[-0.055em] text-[var(--paper)] xl:text-6xl">
@@ -79,7 +79,7 @@ export function LoginPage() {
           </div>
           {submitted ? (
             <div className="rounded-xl border border-[var(--acid)]/25 bg-[var(--acid)]/5 p-7">
-              <CheckCircle2 className="size-7 text-[var(--acid)]" />
+              <CheckCircle2 className="size-7 text-[var(--acid-ink)]" />
               <h1 className="mt-5 text-2xl font-semibold text-[var(--text)]">Check your inbox</h1>
               <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
                 We sent a secure {mode === 'recovery' ? 'password reset' : 'sign-in'} link to{' '}
@@ -91,7 +91,7 @@ export function LoginPage() {
             </div>
           ) : (
             <>
-              <p className="text-xs font-bold tracking-[0.15em] text-[var(--acid)] uppercase">
+              <p className="text-xs font-bold tracking-[0.15em] text-[var(--acid-ink)] uppercase">
                 Internal access
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[var(--text)]">
@@ -154,7 +154,7 @@ export function LoginPage() {
                     />
                     <button
                       type="button"
-                      className="mt-2 text-left text-xs font-semibold text-[var(--acid)] hover:underline"
+                      className="mt-2 text-left text-xs font-semibold text-[var(--acid-ink)] hover:underline"
                       onClick={() => setMode('recovery')}
                     >
                       Forgot password?

@@ -1,11 +1,11 @@
 insert into public.roles (code, name)
 values
-  ('SALES', 'Sales'),
-  ('CREATOR', 'Creator'),
-  ('APPROVER', 'Approver'),
-  ('PUBLISHER', 'Publisher'),
+  ('ADMINISTRATOR', 'Administrator'),
   ('FINANCE', 'Finance'),
-  ('ADMINISTRATOR', 'Administrator')
+  ('SALES', 'Sales'),
+  ('APPROVER', 'Approver'),
+  ('CREATOR', 'Creator'),
+  ('PUBLISHER', 'Publisher')
 on conflict (code) do update set name = excluded.name;
 
 insert into public.integration_connections (provider, status, configuration_json)
@@ -338,6 +338,3 @@ grant execute on function public.fail_outbox_event(uuid, text, text) to service_
 grant execute on function public.record_automated_publication_verification(
   uuid, jsonb, integer
 ) to service_role;
-
-comment on policy promotion_assets_insert on storage.objects is
-  'Uploads must use <promotion_uuid>/<resource_uuid>/<sanitized_filename>; physical delete is intentionally unavailable.';

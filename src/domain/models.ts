@@ -1,5 +1,6 @@
 import type { PromotionStatus } from './promotion-status';
 import type { RoleCode } from './permissions';
+import type { PublishingChannel } from './channels';
 
 export interface Profile {
   id: string;
@@ -41,6 +42,22 @@ export interface Promotion {
   updatedAt: string;
   cancellationReason: string | null;
   allowedActions: PromotionAction[];
+}
+
+export type CampaignPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+
+export interface CampaignMetadata {
+  promotionId: string;
+  campaignType: string;
+  scheduledDate: string | null;
+  priority: CampaignPriority;
+  briefUrl: string | null;
+  clientMaterialLinks: string[];
+  externalResourceLinks: string[];
+  platforms: string[];
+  publishingAccountIds: string[];
+  externalPartnerAccountIds: string[];
+  internalNotes: string | null;
 }
 
 export type PromotionAction =
@@ -157,6 +174,7 @@ export interface Notification {
 
 export interface PromotionDetail {
   promotion: Promotion;
+  metadata: CampaignMetadata | null;
   resources: ResourceLink[];
   submissions: ApprovalSubmission[];
   publications: Publication[];
@@ -164,7 +182,35 @@ export interface PromotionDetail {
   activity: ActivityEvent[];
 }
 
+export interface FinanceCalendarEvent {
+  id: string;
+  promotionId: string;
+  title: string;
+  clientName: string;
+  date: string;
+  status: Invoice['status'];
+  amount: number;
+  currency: string;
+  invoiceNumber: string | null;
+}
+
+export type PublishingAccountOwnership = 'SENTIENT_OWNED' | 'CLIENT_OWNED' | 'EXTERNAL_PARTNER';
+
+export interface PublishingAccount {
+  id: string;
+  platform: PublishingChannel;
+  accountName: string;
+  handle: string;
+  accountUrl: string;
+  ownershipType: PublishingAccountOwnership;
+  partnerName: string | null;
+  active: boolean;
+  defaultPublisherName: string | null;
+  notes: string | null;
+}
+
 export interface DashboardData {
+  promotions: Promotion[];
   counts: Partial<Record<PromotionStatus, number>>;
   attention: Promotion[];
   overdue: Promotion[];

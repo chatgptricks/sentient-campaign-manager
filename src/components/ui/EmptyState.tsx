@@ -15,7 +15,7 @@ export function EmptyState({
     <div className="grid min-h-52 place-items-center px-6 py-12 text-center">
       <div className="max-w-sm">
         {icon ? (
-          <div className="mx-auto mb-4 grid size-11 place-items-center rounded-lg bg-white/6 text-[var(--acid)]">
+          <div className="mx-auto mb-4 grid size-11 place-items-center rounded-lg bg-white/6 text-[var(--acid-ink)]">
             {icon}
           </div>
         ) : null}

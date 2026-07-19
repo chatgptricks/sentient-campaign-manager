@@ -1,4 +1,4 @@
-import { authenticateUser, isInternalRequest } from '../_shared/auth/index.ts';
+import { authenticateUser, hasRole, isInternalRequest } from '../_shared/auth/index.ts';
 import { createServiceClient } from '../_shared/database.ts';
 import { assertMethod, assertUuid, databaseError, HttpError } from '../_shared/errors.ts';
 import { functionHandler } from '../_shared/function-handler.ts';
@@ -48,9 +48,9 @@ export const handleRequest = functionHandler('verify-publication', async (reques
       : publication.promotions;
     const promotion = relation as { publisher_id?: string | null; sales_owner_id?: string } | null;
     const canVerify =
-      auth.roles.has('ADMINISTRATOR') ||
-      (auth.roles.has('SALES') && promotion?.sales_owner_id === auth.user.id) ||
-      (auth.roles.has('PUBLISHER') && promotion?.publisher_id === auth.user.id);
+      hasRole(auth, 'ADMINISTRATOR') ||
+      (hasRole(auth, 'SALES') && promotion?.sales_owner_id === auth.user.id) ||
+      (hasRole(auth, 'PUBLISHER') && promotion?.publisher_id === auth.user.id);
     if (!canVerify) throw new HttpError(403, 'FORBIDDEN', 'You cannot verify this publication.');
   }
 

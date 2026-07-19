@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Archive, Building2, Mail, MapPin, Pencil, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { hasAnyRole } from '../../domain/permissions';
@@ -61,14 +62,19 @@ export function ClientsPage() {
             <Card key={client.id} className="group transition hover:border-[var(--border-strong)]">
               <CardBody>
                 <div className="flex items-start justify-between gap-4">
-                  <div className="grid size-11 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid)]">
+                  <div className="grid size-11 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">
                     <Building2 className="size-5" />
                   </div>
                   <span className="text-[10px] font-bold tracking-[0.1em] text-[var(--text-dim)] uppercase">
                     Since {formatDate(client.createdAt)}
                   </span>
                 </div>
-                <h2 className="mt-5 text-lg font-semibold text-[var(--text)]">{client.name}</h2>
+                <Link
+                  to={`/clients/${client.id}`}
+                  className="mt-5 block text-lg font-semibold text-[var(--text)] hover:text-[var(--acid-ink)] focus-visible:underline focus-visible:outline-none"
+                >
+                  {client.name}
+                </Link>
                 <div className="mt-4 space-y-2 text-sm text-[var(--text-muted)]">
                   <p className="flex items-center gap-2">
                     <Mail className="size-3.5 shrink-0 text-[var(--text-dim)]" />

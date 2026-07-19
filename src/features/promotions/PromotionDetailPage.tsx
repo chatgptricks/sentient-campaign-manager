@@ -10,6 +10,7 @@ import {
   Check,
   CircleDollarSign,
   ClipboardCheck,
+  Copy,
   FileImage,
   History,
   Link2,
@@ -40,9 +41,11 @@ import type {
   Invoice,
   PromotionAction,
   PromotionDetail,
+  PublishingAccount,
   PublicationVerification,
   ResourceLink,
 } from '../../domain/models';
+import { isPublishingChannel, publishingChannelLabel } from '../../domain/channels';
 import { hasAnyRole } from '../../domain/permissions';
 import { getFriendlyError, toDomainError } from '../../domain/errors';
 import { campaignService } from '../../lib/data';
@@ -54,7 +57,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { PromotionStatusBadge } from './PromotionStatusBadge';
-import { getApprovedPublicationResources } from './presentation-helpers';
+import { getApprovedPublicationResources, getCurrentOwnerName } from './presentation-helpers';
 import {
   ApprovalDialog,
   AssignmentDialog,
@@ -66,7 +69,12 @@ import {
   ResourceDialog,
   VerificationDialog,
 } from './ActionForms';
+
+function channelName(value: string) {
+  return isPublishingChannel(value) ? publishingChannelLabel[value] : value;
+}
 import { useAuth } from '../auth/AuthProvider';
+import { canViewFinanceQueue } from '../my-work/visibility';
 
 type DialogState =
   | null
@@ -151,7 +159,7 @@ export function ResourceAccessControl({
 }
 
 function OverviewSection({ detail }: { detail: PromotionDetail }) {
-  const { promotion } = detail;
+  const { promotion, metadata } = detail;
   const assignments = [
     { label: 'Sales owner', name: promotion.salesOwnerName },
     { label: 'Creator', name: promotion.creatorName },
@@ -195,6 +203,77 @@ function OverviewSection({ detail }: { detail: PromotionDetail }) {
               </dd>
             </div>
           </dl>
+        </CardBody>
+      </Card>
+      <Card className="xl:col-span-2">
+        <CardHeader
+          title="Campaign operating brief"
+          description="Structured planning metadata used by the weekly queue and publishing handoff."
+        />
+        <CardBody>
+          {metadata ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+                  Type
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[var(--text)]">
+                  {metadata.campaignType}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+                  Priority
+                </p>
+                <div className="mt-2">
+                  <Badge
+                    tone={
+                      metadata.priority === 'URGENT' || metadata.priority === 'HIGH'
+                        ? 'attention'
+                        : 'neutral'
+                    }
+                  >
+                    {metadata.priority}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+                  Scheduled
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[var(--text)]">
+                  {formatDate(metadata.scheduledDate)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+                  Channels
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[var(--text)]">
+                  {metadata.platforms.map(channelName).join(' · ') || 'Not selected'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--text-muted)]">
+              No operating metadata has been added yet.
+            </p>
+          )}
+          {metadata?.briefUrl ? (
+            <a
+              href={metadata.briefUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--acid-ink)] hover:text-[var(--acid-ink)]"
+            >
+              Open brief <ArrowUpRight className="size-3.5" />
+            </a>
+          ) : null}
+          {metadata?.internalNotes ? (
+            <p className="mt-5 border-t border-[var(--border)] pt-4 text-sm leading-6 text-[var(--text-muted)]">
+              {metadata.internalNotes}
+            </p>
+          ) : null}
         </CardBody>
       </Card>
       <Card>
@@ -259,7 +338,7 @@ function ResourcesSection({
               className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between"
             >
               <div className="flex min-w-0 items-start gap-4">
-                <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/5 text-[var(--acid)]">
+                <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/5 text-[var(--acid-ink)]">
                   <FileImage className="size-4.5" />
                 </div>
                 <div className="min-w-0">
@@ -345,7 +424,7 @@ function CreativeSection({
         <CardBody>
           <div className="flex flex-col gap-5 rounded-lg border border-[var(--border)] bg-black/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <div className="grid size-11 place-items-center rounded-lg bg-[var(--acid)]/8 text-[var(--acid)]">
+              <div className="grid size-11 place-items-center rounded-lg bg-[var(--acid)]/8 text-[var(--acid-ink)]">
                 <UserRound className="size-5" />
               </div>
               <div>
@@ -394,7 +473,7 @@ function CreativeSection({
         <CardHeader title="Current deliverable" description="Latest active creative reference." />
         {latestResource ? (
           <CardBody>
-            <FileImage className="size-6 text-[var(--acid)]" />
+            <FileImage className="size-6 text-[var(--acid-ink)]" />
             <p className="mt-4 text-sm font-semibold text-[var(--text)]">
               {latestResource.displayName}
             </p>
@@ -569,85 +648,194 @@ function VerificationHistory({ verifications }: { verifications: PublicationVeri
 
 function PublishingSection({
   detail,
+  accounts,
   onRequestVerification,
 }: {
   detail: PromotionDetail;
+  accounts: PublishingAccount[];
   onRequestVerification(id: string): void;
 }) {
+  const selectedAccountIds = new Set(detail.metadata?.publishingAccountIds ?? []);
+  const selectedAccounts = accounts.filter((account) => selectedAccountIds.has(account.id));
+  const completedAccounts = selectedAccounts.filter((account) =>
+    detail.publications.some((publication) => publication.provider === account.platform),
+  );
   return (
-    <Card>
-      <CardHeader
-        title="Publication evidence"
-        description="Manual publishing records describe work completed outside this system."
-      />
-      {detail.publications.length ? (
-        <div className="divide-y divide-[var(--border)]">
-          {detail.publications.map((publication) => (
-            <article key={publication.id} className="px-5 py-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-[var(--text)]">
-                      {publication.provider} · {publication.destination}
-                    </h3>
-                    {publication.verificationStatus ? (
-                      <Badge
-                        tone={
-                          publication.verificationStatus === 'VERIFIED'
-                            ? 'success'
-                            : publication.verificationStatus === 'FAILED'
-                              ? 'danger'
-                              : 'attention'
-                        }
-                      >
-                        {publication.verificationStatus}
-                      </Badge>
-                    ) : (
-                      <Badge tone="attention">UNVERIFIED</Badge>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-[var(--text-dim)]">
-                    Published by {publication.publishedByName} ·{' '}
-                    {formatDateTime(publication.publishedAt)}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    Artifact: {publication.artifactName}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild variant="secondary" size="sm">
-                    <a href={publication.publicationUrl} target="_blank" rel="noreferrer">
-                      Open publication <ArrowUpRight className="size-3.5" />
-                    </a>
-                  </Button>
-                  {detail.promotion.allowedActions.includes('REQUEST_PUBLICATION_VERIFICATION') ? (
-                    <Button size="sm" onClick={() => onRequestVerification(publication.id)}>
-                      <ShieldCheck className="size-3.5" />
-                      Request verification
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <section
-                className="mt-5 border-t border-[var(--border)] pt-5"
-                aria-label={`Verification history for ${publication.provider} ${publication.destination}`}
+    <div className="space-y-5">
+      <Card>
+        <CardHeader
+          title="Publishing checklist"
+          description="Each selected account stays attached to the parent campaign until its publication is recorded."
+          action={
+            selectedAccounts.length ? (
+              <Badge
+                tone={
+                  completedAccounts.length === selectedAccounts.length ? 'success' : 'attention'
+                }
               >
-                <h4 className="mb-3 text-xs font-semibold text-[var(--text)]">
-                  Verification history
-                </h4>
-                <VerificationHistory verifications={publication.verifications} />
-              </section>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={<Send className="size-5" />}
-          title="No publication recorded"
-          description="The assigned publisher records the live URL after publishing externally."
+                {completedAccounts.length}/{selectedAccounts.length} complete
+              </Badge>
+            ) : undefined
+          }
         />
-      )}
-    </Card>
+        {selectedAccounts.length ? (
+          <div className="divide-y divide-[var(--border)]">
+            {selectedAccounts.map((account) => {
+              const publication = detail.publications.find(
+                (item) => item.provider === account.platform,
+              );
+              return (
+                <div
+                  key={account.id}
+                  className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`grid size-8 place-items-center rounded-full border text-xs font-bold ${publication ? 'border-[var(--acid)]/40 bg-[var(--acid)]/10 text-[var(--acid-ink)]' : 'border-[var(--border-strong)] text-[var(--text-dim)]'}`}
+                    >
+                      {publication ? <Check className="size-4" /> : '·'}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text)]">
+                        {account.accountName}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-dim)]">
+                        {publishingChannelLabel[account.platform]} · {account.handle} ·{' '}
+                        {account.ownershipType.replaceAll('_', ' ')}
+                      </p>
+                    </div>
+                  </div>
+                  {publication ? (
+                    <Button asChild variant="secondary" size="sm">
+                      <a href={publication.publicationUrl} target="_blank" rel="noreferrer">
+                        Open live post <ArrowUpRight className="size-3.5" />
+                      </a>
+                    </Button>
+                  ) : (
+                    <Badge tone="attention">Awaiting publication</Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <CardBody>
+            <p className="text-sm text-[var(--text-muted)]">
+              No channel accounts selected. Edit the campaign brief to build the checklist.
+            </p>
+          </CardBody>
+        )}
+      </Card>
+      <Card>
+        <CardHeader
+          title="Publication evidence"
+          description="Manual publishing records describe work completed outside this system."
+          action={
+            detail.publications.length ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(
+                      detail.publications
+                        .map((publication) => publication.publicationUrl)
+                        .join('\n'),
+                    )
+                    .then(() => toast.success('Published links copied.'))
+                    .catch(() => toast.error('Unable to access the clipboard.'));
+                }}
+              >
+                <Copy className="size-3.5" />
+                Copy all links
+              </Button>
+            ) : undefined
+          }
+        />
+        {detail.publications.length ? (
+          <div className="divide-y divide-[var(--border)]">
+            {detail.publications.map((publication) => (
+              <article key={publication.id} className="px-5 py-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-[var(--text)]">
+                        {channelName(publication.provider)} · {publication.destination}
+                      </h3>
+                      {publication.verificationStatus ? (
+                        <Badge
+                          tone={
+                            publication.verificationStatus === 'VERIFIED'
+                              ? 'success'
+                              : publication.verificationStatus === 'FAILED'
+                                ? 'danger'
+                                : 'attention'
+                          }
+                        >
+                          {publication.verificationStatus}
+                        </Badge>
+                      ) : (
+                        <Badge tone="attention">UNVERIFIED</Badge>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs text-[var(--text-dim)]">
+                      Published by {publication.publishedByName} ·{' '}
+                      {formatDateTime(publication.publishedAt)}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      Artifact: {publication.artifactName}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void navigator.clipboard
+                          .writeText(publication.publicationUrl)
+                          .then(() => toast.success('Published link copied.'))
+                          .catch(() => toast.error('Unable to access the clipboard.'));
+                      }}
+                    >
+                      <Copy className="size-3.5" />
+                      Copy link
+                    </Button>
+                    <Button asChild variant="secondary" size="sm">
+                      <a href={publication.publicationUrl} target="_blank" rel="noreferrer">
+                        Open publication <ArrowUpRight className="size-3.5" />
+                      </a>
+                    </Button>
+                    {detail.promotion.allowedActions.includes(
+                      'REQUEST_PUBLICATION_VERIFICATION',
+                    ) ? (
+                      <Button size="sm" onClick={() => onRequestVerification(publication.id)}>
+                        <ShieldCheck className="size-3.5" />
+                        Request verification
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                <section
+                  className="mt-5 border-t border-[var(--border)] pt-5"
+                  aria-label={`Verification history for ${channelName(publication.provider)} ${publication.destination}`}
+                >
+                  <h4 className="mb-3 text-xs font-semibold text-[var(--text)]">
+                    Verification history
+                  </h4>
+                  <VerificationHistory verifications={publication.verifications} />
+                </section>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={<Send className="size-5" />}
+            title="No publication recorded"
+            description="The assigned publisher records the live URL after publishing externally."
+          />
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -678,7 +866,7 @@ function FinanceSection({
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-[var(--text)]">
-                      {publication.provider} · {publication.destination}
+                      {channelName(publication.provider)} · {publication.destination}
                     </h3>
                     <p className="mt-1 text-xs text-[var(--text-dim)]">
                       Artifact: {publication.artifactName}
@@ -908,6 +1096,11 @@ export function PromotionDetailPage() {
     queryFn: () => campaignService.getPromotion(id ?? ''),
     enabled: Boolean(id && profile),
   });
+  const accountsQuery = useQuery({
+    queryKey: ['publishing-accounts', profile?.id],
+    queryFn: () => campaignService.listPublishingAccounts(),
+    enabled: Boolean(profile),
+  });
   const action = useMutation({
     mutationFn: (request: ActionRequest) => request.run(),
     onSuccess: async (_result, request) => {
@@ -976,6 +1169,7 @@ export function PromotionDetailPage() {
   const pendingSubmission =
     detail.submissions.find((submission) => submission.state === 'PENDING') ?? null;
   const currentPublication = detail.publications[0];
+  const canViewFinance = canViewFinanceQueue(profile?.roles ?? []);
   const run = (request: ActionRequest) => action.mutate(request);
 
   const tabs = [
@@ -988,7 +1182,9 @@ export function PromotionDetailPage() {
     { value: 'creative', label: 'Creative' },
     { value: 'approval', label: 'Approval', count: detail.submissions.length },
     { value: 'publishing', label: 'Publishing', count: detail.publications.length },
-    { value: 'finance', label: 'Finance', count: detail.invoice ? 1 : 0 },
+    ...(canViewFinance
+      ? [{ value: 'finance', label: 'Finance', count: detail.invoice ? 1 : 0 }]
+      : []),
     { value: 'activity', label: 'Activity' },
     { value: 'audit', label: 'Audit' },
   ];
@@ -1003,18 +1199,22 @@ export function PromotionDetailPage() {
           </Link>
         </Button>
       </div>
-      <section className="sticky top-16 z-10 rounded-xl border border-[var(--border)] bg-[var(--background)]/94 p-5 shadow-xl backdrop-blur-xl lg:p-6">
+      <section className="sticky top-16 z-10 rounded-lg border border-[var(--border)] bg-[var(--background)] p-5 shadow-xl lg:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
               <PromotionStatusBadge status={promotion.status} />
               <span className="text-xs text-[var(--text-dim)]">v{promotion.version}</span>
             </div>
-            <h1 className="mt-3 text-2xl leading-tight font-semibold tracking-[-0.03em] break-words text-[var(--text)] sm:text-3xl">
+            <h1 className="mt-3 text-3xl leading-tight font-semibold tracking-[-0.03em] break-words text-[var(--text)]">
               {promotion.title}
             </h1>
             <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-muted)]">
               <span>{promotion.clientName}</span>
+              <span className="flex items-center gap-1.5">
+                <UserRound className="size-3.5" />
+                Owner: {getCurrentOwnerName(promotion)}
+              </span>
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="size-3.5" />
                 {formatDate(promotion.dueDate)}
@@ -1152,7 +1352,7 @@ export function PromotionDetailPage() {
               className={`flex min-w-0 items-center gap-2 text-[10px] font-bold tracking-[0.06em] uppercase ${stage >= index ? 'text-[var(--text)]' : 'text-[var(--text-dim)]'}`}
             >
               <span
-                className={`grid size-5 place-items-center rounded-full border text-[9px] ${stage > index ? 'border-[var(--acid)] bg-[var(--acid)] text-black' : stage === index ? 'border-[var(--acid)] text-[var(--acid)]' : 'border-[var(--border-strong)]'}`}
+                className={`grid size-5 place-items-center rounded-full border text-[9px] ${stage > index ? 'border-[var(--acid)] bg-[var(--acid)] text-black' : stage === index ? 'border-[var(--acid)] text-[var(--acid-ink)]' : 'border-[var(--border-strong)]'}`}
               >
                 {stage > index ? <Check className="size-3" /> : index + 1}
               </span>
@@ -1160,6 +1360,17 @@ export function PromotionDetailPage() {
             </li>
           ))}
         </ol>
+        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4">
+          <span className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+            Who has the ball?
+          </span>
+          <span className="rounded-md border border-[var(--acid)]/25 bg-[var(--acid)]/8 px-3 py-1.5 text-xs font-semibold text-[var(--acid-ink)]">
+            {getCurrentOwnerName(promotion)}
+          </span>
+          <span className="text-xs text-[var(--text-dim)]">
+            Next handoff follows the current workflow stage.
+          </span>
+        </div>
       </section>
 
       <Tabs.Root defaultValue="overview">
@@ -1239,6 +1450,7 @@ export function PromotionDetailPage() {
         <Tabs.Content value="publishing" className="mt-6 focus-visible:outline-none">
           <PublishingSection
             detail={detail}
+            accounts={accountsQuery.data ?? []}
             onRequestVerification={(publicationId) =>
               run({
                 run: () => campaignService.requestVerification(publicationId, promotion.version),
@@ -1247,22 +1459,25 @@ export function PromotionDetailPage() {
             }
           />
         </Tabs.Content>
-        <Tabs.Content value="finance" className="mt-6 focus-visible:outline-none">
-          <FinanceSection
-            detail={detail}
-            canManage={hasAnyRole(profile?.roles ?? [], ['FINANCE'])}
-            onCreate={() => setDialog({ type: 'invoice' })}
-            onIssue={() => setDialog({ type: 'issue-invoice' })}
-            onSetStatus={(status) => {
-              if (!detail.invoice) return;
-              run({
-                run: () =>
-                  campaignService.setInvoiceStatus(detail.invoice!.id, status, promotion.version),
-                success: status === 'PAID' ? 'Invoice marked as paid.' : 'Invoice status updated.',
-              });
-            }}
-          />
-        </Tabs.Content>
+        {canViewFinance ? (
+          <Tabs.Content value="finance" className="mt-6 focus-visible:outline-none">
+            <FinanceSection
+              detail={detail}
+              canManage={hasAnyRole(profile?.roles ?? [], ['FINANCE'])}
+              onCreate={() => setDialog({ type: 'invoice' })}
+              onIssue={() => setDialog({ type: 'issue-invoice' })}
+              onSetStatus={(status) => {
+                if (!detail.invoice) return;
+                run({
+                  run: () =>
+                    campaignService.setInvoiceStatus(detail.invoice!.id, status, promotion.version),
+                  success:
+                    status === 'PAID' ? 'Invoice marked as paid.' : 'Invoice status updated.',
+                });
+              }}
+            />
+          </Tabs.Content>
+        ) : null}
         <Tabs.Content value="activity" className="mt-6 focus-visible:outline-none">
           <ActivitySection detail={detail} />
         </Tabs.Content>
@@ -1407,7 +1622,7 @@ export function PromotionDetailPage() {
 
       {action.isPending ? (
         <div className="fixed right-5 bottom-5 z-[60] flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-3 text-xs text-[var(--text-muted)] shadow-xl">
-          <LoaderCircle className="size-4 animate-spin text-[var(--acid)]" />
+          <LoaderCircle className="size-4 animate-spin text-[var(--acid-ink)]" />
           Saving workflow change…
         </div>
       ) : null}

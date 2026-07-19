@@ -1,9 +1,12 @@
 import type {
   Client,
+  CampaignMetadata,
   DashboardData,
+  FinanceCalendarEvent,
   Invoice,
   Notification,
   OperationsHealth,
+  PublishingAccount,
   Profile,
   Promotion,
   PromotionDetail,
@@ -11,6 +14,7 @@ import type {
 import type { RoleCode } from '../../domain/permissions';
 import type {
   ApprovalDecisionInput,
+  CampaignMetadataInput,
   ClientInput,
   InvoiceInput,
   PromotionInput,
@@ -36,13 +40,22 @@ export interface IntegrationTestResult {
 
 export interface CampaignService {
   getDashboard(userId: string): Promise<DashboardData>;
+  listFinanceCalendarEvents(): Promise<FinanceCalendarEvent[]>;
   listPromotions(input?: ListPromotionsInput): Promise<Promotion[]>;
   getPromotion(id: string): Promise<PromotionDetail>;
+  saveCampaignMetadata(id: string, input: CampaignMetadataInput): Promise<CampaignMetadata>;
   listClients(): Promise<Client[]>;
+  listPublishingAccounts(): Promise<PublishingAccount[]>;
   listProfiles(role?: RoleCode): Promise<Profile[]>;
   listNotifications(): Promise<Notification[]>;
   getOperationsHealth(): Promise<OperationsHealth>;
   inviteUser(input: { email: string; displayName: string; roles: RoleCode[] }): Promise<void>;
+  createUser(input: {
+    email: string;
+    displayName: string;
+    temporaryPassword: string;
+    roles: RoleCode[];
+  }): Promise<void>;
   replaceUserRoles(profileId: string, roles: RoleCode[]): Promise<void>;
   setProfileStatus(profileId: string, status: Profile['status']): Promise<void>;
   processOutbox(): Promise<{ processed: number }>;

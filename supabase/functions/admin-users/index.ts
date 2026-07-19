@@ -6,6 +6,7 @@ import { jsonResponse, readJson } from '../_shared/http.ts';
 import { requestIdempotencyKey } from '../_shared/idempotency.ts';
 import { serve } from '../_shared/runtime.ts';
 import {
+  createUser,
   inviteUser,
   normalizeEmail,
   replaceUserRoles,
@@ -20,6 +21,8 @@ type AdminUsersBody = {
   email?: unknown;
   roles?: unknown;
   status?: unknown;
+  temporaryPassword?: unknown;
+  temporary_password?: unknown;
   userId?: unknown;
   user_id?: unknown;
 };
@@ -32,7 +35,7 @@ export const handleRequest = functionHandler('admin-users', async (request) => {
   const action = body.action?.trim().toLowerCase().replaceAll('-', '_');
   const serviceClient = createServiceClient();
 
-  if (action === 'invite' || action === 'create') {
+  if (action === 'invite') {
     const email = normalizeEmail(body.email);
     const emailHash = await sha256Hex(email);
     const key = requestIdempotencyKey(request, `admin-user:invite:${emailHash}`);
@@ -49,13 +52,31 @@ export const handleRequest = functionHandler('admin-users', async (request) => {
     return jsonResponse(request, result, result.invited ? 201 : 200);
   }
 
+  if (action === 'create') {
+    const email = normalizeEmail(body.email);
+    const emailHash = await sha256Hex(email);
+    const key = requestIdempotencyKey(request, `admin-user:create:${emailHash}`);
+    const result = await createUser(
+      serviceClient,
+      auth,
+      {
+        displayName: body.displayName ?? body.display_name,
+        email,
+        roles: body.roles,
+        temporaryPassword: body.temporaryPassword ?? body.temporary_password,
+      },
+      key,
+    );
+    return jsonResponse(request, result, result.created ? 201 : 200);
+  }
+
   const roleAction = action === 'replace_roles' || action === 'replaceroles';
   const statusAction = action === 'set_status' || action === 'setstatus';
   if (!roleAction && !statusAction) {
     throw new HttpError(
       400,
       'ADMIN_USER_ACTION_INVALID',
-      'action must be invite, replace_roles, or set_status.',
+      'action must be invite, create, replace_roles, or set_status.',
     );
   }
 

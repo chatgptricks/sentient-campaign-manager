@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { authenticateUser, requireInternalOrRoles } from '../_shared/auth/index.ts';
+import {
+  authenticateUser,
+  hasRole,
+  type AuthContext,
+  requireAnyRole,
+  requireInternalOrRoles,
+} from '../_shared/auth/index.ts';
 import type { DatabaseClient } from '../_shared/database.ts';
 import { databaseError, HttpError } from '../_shared/errors.ts';
 import { executeIdempotently, requestIdempotencyKey } from '../_shared/idempotency.ts';
@@ -85,7 +91,19 @@ describe('shared edge-function controls', () => {
 
   it('normalizes admin user email and role inputs', () => {
     expect(normalizeEmail(' Admin@Example.COM ')).toBe('admin@example.com');
-    expect(normalizeRoleCodes(['sales', 'FINANCE', 'sales'])).toEqual(['FINANCE', 'SALES']);
+    expect(normalizeRoleCodes(['sales', 'sales'])).toEqual(['SALES']);
+  });
+
+  it('rejects multiple hierarchical roles for one admin user', () => {
+    expect(() => normalizeRoleCodes(['SALES', 'FINANCE'])).toThrowError(HttpError);
+  });
+
+  it('authorizes edge functions with hierarchical roles', () => {
+    const context = { roles: new Set(['SALES']) } as AuthContext;
+    expect(hasRole(context, 'APPROVER')).toBe(true);
+    expect(hasRole(context, 'FINANCE')).toBe(false);
+    expect(() => requireAnyRole(context, ['PUBLISHER'])).not.toThrow();
+    expect(() => requireAnyRole(context, ['FINANCE'])).toThrowError(HttpError);
   });
 
   it('rejects unknown admin roles', () => {

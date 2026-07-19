@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 
 import type { ApprovalSubmission, Promotion, ResourceLink } from '../../domain/models';
+import { publishingChannelLabel, publishingChannels } from '../../domain/channels';
 import { getFriendlyError } from '../../domain/errors';
 import type { RoleCode } from '../../domain/permissions';
 import { campaignService } from '../../lib/data';
@@ -497,20 +498,22 @@ export function PublicationDialog({
       description="Manual adapter: record content already published outside this system. This does not publish automatically."
     >
       <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid)]">
+        <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid-ink)]">
           Manual publishing mode · evidence will be stored in the immutable publication history.
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field
-            label="Provider"
+            label="Channel"
             htmlFor="publication-provider"
             error={form.formState.errors.provider?.message}
           >
-            <Input
-              id="publication-provider"
-              placeholder="INSTAGRAM"
-              {...form.register('provider')}
-            />
+            <Select id="publication-provider" {...form.register('provider')}>
+              {publishingChannels.map((channel) => (
+                <option key={channel} value={channel}>
+                  {publishingChannelLabel[channel]}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field
             label="Destination"
@@ -649,7 +652,7 @@ export function InvoiceDialog({
       description="Manual accounting adapter: register an invoice created externally or create a local draft."
     >
       <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid)]">
+        <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid-ink)]">
           Manual accounting mode · no external accounting system will be contacted.
         </div>
         <div className="grid gap-5 sm:grid-cols-2">

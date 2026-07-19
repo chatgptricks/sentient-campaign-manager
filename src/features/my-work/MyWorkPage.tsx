@@ -35,7 +35,7 @@ function WorkList({ promotions, title }: { promotions: Promotion[]; title: strin
           className="group flex flex-wrap items-center justify-between gap-5 px-5 py-4 transition hover:bg-white/2 focus-visible:ring-2 focus-visible:ring-[var(--acid)] focus-visible:outline-none focus-visible:ring-inset"
         >
           <div>
-            <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--acid)]">
+            <p className="text-sm font-semibold text-[var(--text)] group-hover:text-[var(--acid-ink)]">
               {promotion.title}
             </p>
             <p className="mt-1 text-xs text-[var(--text-dim)]">

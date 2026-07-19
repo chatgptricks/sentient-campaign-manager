@@ -66,7 +66,7 @@ function asRoleList(value: unknown): RoleCode[] {
 async function loadProfile(userId: string): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*, user_roles(role:roles(code))')
+    .select('*, user_roles!user_roles_user_id_fkey(role:roles(code))')
     .eq('id', userId)
     .single();
 
@@ -121,6 +121,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
         setProfile(nextProfile);
+        if (nextSession.user.user_metadata?.must_change_password === true) {
+          setCredentialSetup((current) => (current === 'recovery' ? current : 'invite'));
+        }
         setError(null);
       } catch (profileError) {
         if (identityRef.current !== nextSession.user.id) return;
@@ -200,7 +203,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       async updatePassword(password) {
         setError(null);
-        const result = await supabase.auth.updateUser({ password });
+        const result = await supabase.auth.updateUser({
+          password,
+          data: { must_change_password: false },
+        });
         if (result.error) {
           setError(result.error.message);
           throw result.error;

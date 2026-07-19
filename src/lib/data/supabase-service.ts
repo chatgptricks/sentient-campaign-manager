@@ -1,6 +1,7 @@
 import type {
   ActivityEvent,
   ApprovalSubmission,
+  CampaignMetadata,
   Client,
   DashboardData,
   IntegrationConnection,
@@ -9,6 +10,7 @@ import type {
   Profile,
   Promotion,
   PromotionAction,
+  PublishingAccount,
   Publication,
   PublicationVerification,
   ResourceLink,
@@ -25,6 +27,7 @@ import type {
   PublicationInput,
   ResourceLinkInput,
   VerificationInput,
+  CampaignMetadataInput,
 } from '../validation/schemas';
 import type { AssignmentRole, CampaignService, ListPromotionsInput } from './service';
 import { createPrivateAssetDescriptor } from './private-assets';
@@ -104,6 +107,46 @@ function mapClient(raw: unknown): Client {
     createdAt: textValue(row.created_at),
     updatedAt: textValue(row.updated_at),
     archivedAt: nullableText(row.archived_at),
+  };
+}
+
+function mapCampaignMetadata(raw: unknown): CampaignMetadata {
+  const row = asRow(raw);
+  const stringArray = (value: unknown) =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  const jsonLinks = (value: unknown) =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  return {
+    promotionId: textValue(row.promotion_id),
+    campaignType: textValue(row.campaign_type, 'Social campaign'),
+    scheduledDate: nullableText(row.scheduled_date),
+    priority: textValue(row.priority, 'NORMAL') as CampaignMetadata['priority'],
+    briefUrl: nullableText(row.brief_url),
+    clientMaterialLinks: jsonLinks(row.client_material_links),
+    externalResourceLinks: jsonLinks(row.external_resource_links),
+    platforms: stringArray(row.platforms),
+    publishingAccountIds: stringArray(row.publishing_account_ids),
+    externalPartnerAccountIds: stringArray(row.external_partner_account_ids),
+    internalNotes: nullableText(row.internal_notes),
+  };
+}
+
+function mapPublishingAccount(raw: unknown): PublishingAccount {
+  const row = asRow(raw);
+  return {
+    id: textValue(row.id),
+    platform: textValue(row.platform, 'INSTAGRAM') as PublishingAccount['platform'],
+    accountName: textValue(row.account_name),
+    handle: textValue(row.handle),
+    accountUrl: textValue(row.account_url),
+    ownershipType: textValue(
+      row.ownership_type,
+      'SENTIENT_OWNED',
+    ) as PublishingAccount['ownershipType'],
+    partnerName: nullableText(row.partner_name),
+    active: row.active !== false,
+    defaultPublisherName: row.default_publisher ? relationName(row.default_publisher) : null,
+    notes: nullableText(row.notes),
   };
 }
 
@@ -315,6 +358,7 @@ export const supabaseCampaignService: CampaignService = {
       'READY_FOR_INVOICING',
     ];
     return {
+      promotions: promotions.map((item) => ({ ...item })),
       counts,
       attention: promotions.filter((item) => attentionStates.includes(item.status)).slice(0, 6),
       overdue: promotions
@@ -334,6 +378,39 @@ export const supabaseCampaignService: CampaignService = {
     };
   },
 
+  async listFinanceCalendarEvents() {
+    const [promotions, invoices] = await Promise.all([
+      this.listPromotions(),
+      supabase
+        .from('invoices')
+        .select(
+          'id, promotion_id, invoice_number, amount, currency, status, issued_at, paid_at, created_at',
+        )
+        .order('created_at', { ascending: false }),
+    ]);
+    assertSuccess(invoices.error);
+    const promotionsById = new Map(promotions.map((promotion) => [promotion.id, promotion]));
+
+    return (invoices.data ?? []).flatMap((invoice) => {
+      const promotion = promotionsById.get(invoice.promotion_id);
+      const date = invoice.paid_at ?? invoice.issued_at ?? invoice.created_at;
+      if (!promotion || !date) return [];
+      return [
+        {
+          id: invoice.id,
+          promotionId: invoice.promotion_id,
+          title: promotion.title,
+          clientName: promotion.clientName,
+          date: date.slice(0, 10),
+          status: invoice.status,
+          amount: Number(invoice.amount),
+          currency: invoice.currency,
+          invoiceNumber: invoice.invoice_number,
+        },
+      ];
+    });
+  },
+
   async getPromotion(id: string) {
     const [
       promotionResult,
@@ -344,6 +421,7 @@ export const supabaseCampaignService: CampaignService = {
       currentPublicationIds,
       verifications,
       invoices,
+      metadata,
       activity,
       actions,
     ] = await Promise.all([
@@ -389,6 +467,7 @@ export const supabaseCampaignService: CampaignService = {
         .not('status', 'in', '(VOID,FAILED)')
         .order('created_at', { ascending: false })
         .limit(1),
+      supabase.from('campaign_metadata').select('*').eq('promotion_id', id).maybeSingle(),
       supabase
         .from('audit_log')
         .select('*, actor:profiles!audit_log_actor_id_fkey(display_name)')
@@ -406,6 +485,7 @@ export const supabaseCampaignService: CampaignService = {
       currentPublicationIds,
       verifications,
       invoices,
+      metadata,
       activity,
     ].forEach((result) => assertSuccess(result.error));
     if (promotionResult.data === null) {
@@ -435,6 +515,7 @@ export const supabaseCampaignService: CampaignService = {
 
     return {
       promotion,
+      metadata: metadata.data ? mapCampaignMetadata(metadata.data) : null,
       resources: (resources.data ?? []).map(mapResource),
       submissions: (submissions.data ?? []).map((value) => {
         const mapped = mapSubmission(value);
@@ -467,10 +548,47 @@ export const supabaseCampaignService: CampaignService = {
     return (data ?? []).map(mapClient);
   },
 
+  async saveCampaignMetadata(id: string, input: CampaignMetadataInput) {
+    const data = await callRpc('upsert_campaign_metadata', {
+      promotion_id: id,
+      input: {
+        campaign_type: input.campaignType,
+        scheduled_date: input.scheduledDate || null,
+        priority: input.priority,
+        brief_url: input.briefUrl || null,
+        client_material_links: input.clientMaterialLinks
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+        external_resource_links: input.externalResourceLinks
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+        platforms: input.platforms,
+        publishing_account_ids: input.publishingAccountIds,
+        external_partner_account_ids: input.externalPartnerAccountIds,
+        internal_notes: input.internalNotes || null,
+      },
+    });
+    return mapCampaignMetadata(data);
+  },
+
+  async listPublishingAccounts() {
+    const { data, error } = await supabase
+      .from('publishing_accounts')
+      .select(
+        '*, default_publisher:profiles!publishing_accounts_default_publisher_id_fkey(display_name)',
+      )
+      .order('active', { ascending: false })
+      .order('platform');
+    if (error) throw error;
+    return (data ?? []).map(mapPublishingAccount);
+  },
+
   async listProfiles(role?: RoleCode) {
     const query = supabase
       .from('profiles')
-      .select('*, user_roles(role:roles(code))')
+      .select('*, user_roles!user_roles_user_id_fkey(role:roles(code))')
       .order('display_name');
     const { data, error } = await query;
     assertSuccess(error);
@@ -566,6 +684,19 @@ export const supabaseCampaignService: CampaignService = {
     await assertFunctionSuccess(error);
   },
 
+  async createUser(input) {
+    const { error } = await supabase.functions.invoke('admin-users', {
+      body: {
+        action: 'create',
+        email: input.email,
+        displayName: input.displayName,
+        temporaryPassword: input.temporaryPassword,
+        roles: input.roles,
+      },
+    });
+    await assertFunctionSuccess(error);
+  },
+
   async replaceUserRoles(profileId, roles) {
     const { error } = await supabase.functions.invoke('admin-users', {
       body: { action: 'replace_roles', userId: profileId, roles },
@@ -645,7 +776,9 @@ export const supabaseCampaignService: CampaignService = {
         sales_owner_id: input.salesOwnerId,
       },
     });
-    return mapPromotion(data);
+    const promotion = mapPromotion(data);
+    if (input.metadata) await this.saveCampaignMetadata(promotion.id, input.metadata);
+    return promotion;
   },
 
   async updatePromotion(id: string, version: number, input: Partial<PromotionInput>) {

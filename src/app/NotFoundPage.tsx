@@ -7,7 +7,7 @@ export function NotFoundPage() {
   return (
     <div className="grid min-h-[65vh] place-items-center text-center">
       <div>
-        <SearchX className="mx-auto size-9 text-[var(--acid)]" />
+        <SearchX className="mx-auto size-9 text-[var(--acid-ink)]" />
         <p className="mt-5 text-xs font-bold tracking-[0.14em] text-[var(--text-dim)] uppercase">
           404
         </p>

@@ -31,15 +31,15 @@ export function PromotionsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Promotion pipeline"
-        title="Promotions"
-        description="Every client promotion, assignment, approval, publication, and invoice in one auditable workflow."
+        eyebrow="Campaign pipeline"
+        title="Campaigns"
+        description="Every client campaign, assignment, approval, publication, and invoice in one auditable workflow."
         actions={
           canCreate ? (
             <Button asChild>
               <Link to="/promotions/new">
                 <Plus className="size-4" />
-                New promotion
+                New campaign
               </Link>
             </Button>
           ) : undefined
@@ -54,8 +54,8 @@ export function PromotionsPage() {
               className="pl-9"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search title or client…"
-              aria-label="Search promotions"
+              placeholder="Search campaign or client…"
+              aria-label="Search campaigns"
             />
           </div>
           <div className="relative sm:w-64">
@@ -92,7 +92,7 @@ export function PromotionsPage() {
             emptyAction={
               canCreate ? (
                 <Button asChild>
-                  <Link to="/promotions/new">Create promotion</Link>
+                  <Link to="/promotions/new">Create campaign</Link>
                 </Button>
               ) : undefined
             }

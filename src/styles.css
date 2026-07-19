@@ -1,24 +1,26 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --acid: #cfff04;
-  --acid-soft: #dcff55;
-  --ink: #050505;
-  --paper: #f5f5ef;
-  --background: #090a09;
-  --sidebar: #050505;
-  --surface: #0d0f0d;
-  --surface-raised: #121512;
-  --surface-hover: #171b17;
-  --border: rgba(255, 255, 255, 0.085);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #f5f5ef;
-  --text-muted: #a8aca5;
-  --text-dim: #6f746d;
+  --acid: #d7ff00;
+  --acid-soft: #e7ff66;
+  --acid-ink: #5b6800;
+  --ink: #111318;
+  --paper: #ffffff;
+  --background: #eef0f3;
+  --sidebar: #e4e7eb;
+  --surface: #f5f6f8;
+  --surface-raised: #ffffff;
+  --surface-hover: #f0f2f5;
+  --border: rgba(36, 43, 52, 0.12);
+  --border-strong: rgba(36, 43, 52, 0.22);
+  --text: #1d232b;
+  --text-muted: #5b6470;
+  --text-dim: #818b97;
+  --grid-line: rgba(36, 43, 52, 0.035);
 }
 
 * {
@@ -35,9 +37,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 78% -10%, rgba(207, 255, 4, 0.055), transparent 26rem),
-    var(--background);
+  background: var(--background);
 }
 
 button,
@@ -54,7 +54,7 @@ button,
 
 ::selection {
   background: var(--acid);
-  color: #050505;
+  color: var(--ink);
 }
 
 ::-webkit-scrollbar {
@@ -69,7 +69,7 @@ button,
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(36, 43, 52, 0.22);
   background-clip: padding-box;
 }
 
@@ -79,6 +79,7 @@ button,
 }
 
 .data-table th {
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 0.85rem 1rem;
   text-align: left;
@@ -101,7 +102,7 @@ button,
 }
 
 .data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(10, 132, 255, 0.045);
 }
 
 .data-table tbody tr:last-child td {

@@ -60,7 +60,7 @@ export function AppShell({ children }: PropsWithChildren) {
       </a>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-[var(--border)] bg-[var(--sidebar)] lg:flex lg:flex-col">
         <div className="flex h-20 items-center border-b border-[var(--border)] px-6">
-          <img className="h-7 w-auto" src={logoPath()} alt="Sentient" />
+          <img className="h-7 w-auto brightness-0" src={logoPath()} alt="Sentient" />
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-5">{navigation}</div>
         <div className="border-t border-[var(--border)] p-4">
@@ -79,7 +79,7 @@ export function AppShell({ children }: PropsWithChildren) {
           />
           <aside className="relative h-full w-[min(82vw,20rem)] border-r border-[var(--border)] bg-[var(--sidebar)] p-4 shadow-2xl">
             <div className="mb-7 flex items-center justify-between">
-              <img className="h-7 w-auto" src={logoPath()} alt="Sentient" />
+              <img className="h-7 w-auto brightness-0" src={logoPath()} alt="Sentient" />
               <Button
                 variant="ghost"
                 size="icon"
@@ -96,11 +96,11 @@ export function AppShell({ children }: PropsWithChildren) {
 
       <div className="lg:pl-64">
         {publicConfig.demoMode ? (
-          <div className="border-b border-[var(--acid)]/25 bg-[var(--acid)]/8 px-4 py-2 text-center text-xs font-semibold text-[var(--acid)]">
+          <div className="border-b border-[var(--acid)]/25 bg-[var(--acid)]/8 px-4 py-2 text-center text-xs font-semibold text-[var(--acid-ink)]">
             Interactive development preview · data resets when the server restarts
           </div>
         ) : null}
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/90 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--paper)] px-4 sm:px-6 lg:px-8">
           <Button
             className="lg:hidden"
             variant="ghost"

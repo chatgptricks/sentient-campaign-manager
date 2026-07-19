@@ -155,12 +155,12 @@ on conflict (provider, provider_id) do nothing;
 
 insert into public.roles (code, name)
 values
-  ('SALES', 'Sales'),
-  ('CREATOR', 'Creator'),
-  ('APPROVER', 'Approver'),
-  ('PUBLISHER', 'Publisher'),
+  ('ADMINISTRATOR', 'Administrator'),
   ('FINANCE', 'Finance'),
-  ('ADMINISTRATOR', 'Administrator')
+  ('SALES', 'Sales'),
+  ('APPROVER', 'Approver'),
+  ('CREATOR', 'Creator'),
+  ('PUBLISHER', 'Publisher')
 on conflict (code) do update set name = excluded.name;
 
 insert into public.user_roles (user_id, role_id, granted_by)
@@ -181,3 +181,51 @@ on conflict (user_id, role_id) do nothing;
 update public.profiles
 set status = 'SUSPENDED'
 where id = '88888888-8888-4888-8888-888888888888';
+
+insert into public.publishing_accounts (
+  platform,
+  account_name,
+  handle,
+  account_url,
+  ownership_type,
+  default_publisher_id,
+  notes
+)
+values
+  (
+    'INSTAGRAM',
+    'Sentient official',
+    '@sentient.agency',
+    'https://www.instagram.com/sentient.agency',
+    'SENTIENT_OWNED',
+    '55555555-5555-4555-8555-555555555555'::uuid,
+    'Primary internal account.'
+  ),
+  (
+    'LINKEDIN',
+    'Sentient company page',
+    'sentient-agency',
+    'https://www.linkedin.com/company/sentient-agency',
+    'SENTIENT_OWNED',
+    '55555555-5555-4555-8555-555555555555'::uuid,
+    null
+  ),
+  (
+    'X',
+    'Arcadia Hotels X',
+    '@arcadiahotels',
+    'https://x.com/arcadiahotels',
+    'CLIENT_OWNED',
+    '55555555-5555-4555-8555-555555555555'::uuid,
+    'Client approval required before publishing.'
+  ),
+  (
+    'X',
+    'Travel Network partner account',
+    'travel-network',
+    'https://x.com/travel-network',
+    'EXTERNAL_PARTNER',
+    null,
+    'Retained for historical campaign records.'
+  )
+on conflict (account_url) do nothing;

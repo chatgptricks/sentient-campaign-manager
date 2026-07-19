@@ -129,6 +129,45 @@ describe('manual-adapter development workflow', () => {
     });
   });
 
+  it('stores campaign planning metadata with the parent campaign', async () => {
+    const client = await demoCampaignService.createClient({
+      name: 'Metadata Test Client',
+      billingEmail: '',
+      billingAddress: '',
+    });
+    const sales = (await demoCampaignService.listProfiles('SALES'))[0]!;
+    const promotion = await demoCampaignService.createPromotion({
+      clientId: client.id,
+      title: 'Metadata test campaign',
+      description: 'Structured planning metadata should survive the create flow.',
+      dueDate: '2026-08-02',
+      salesOwnerId: sales.id,
+      metadata: {
+        campaignType: 'Product launch',
+        scheduledDate: '2026-08-03',
+        priority: 'HIGH',
+        briefUrl: 'https://docs.example.com/brief',
+        clientMaterialLinks:
+          'https://drive.example.com/materials\nhttps://docs.example.com/context',
+        externalResourceLinks: '',
+        platforms: ['INSTAGRAM', 'LINKEDIN'],
+        publishingAccountIds: ['account-instagram-sentient'],
+        externalPartnerAccountIds: [],
+        internalNotes: 'Use the approved master creative.',
+      },
+    });
+    const detail = await demoCampaignService.getPromotion(promotion.id);
+    expect(detail.metadata).toMatchObject({
+      campaignType: 'Product launch',
+      priority: 'HIGH',
+      platforms: ['INSTAGRAM', 'LINKEDIN'],
+      clientMaterialLinks: [
+        'https://drive.example.com/materials',
+        'https://docs.example.com/context',
+      ],
+    });
+  });
+
   it('simulates a private upload and opens it through an ephemeral URL', async () => {
     const promotion = (await demoCampaignService.listPromotions()).find((item) =>
       item.allowedActions.includes('ATTACH_RESOURCE'),

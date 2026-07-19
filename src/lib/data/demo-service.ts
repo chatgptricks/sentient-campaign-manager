@@ -1,5 +1,6 @@
 import type {
   ActivityEvent,
+  CampaignMetadata,
   Client,
   DashboardData,
   Invoice,
@@ -9,6 +10,7 @@ import type {
   Promotion,
   PromotionAction,
   PromotionDetail,
+  PublishingAccount,
   PublicationVerification,
   ResourceLink,
 } from '../../domain/models';
@@ -17,6 +19,7 @@ import type { PromotionStatus } from '../../domain/promotion-status';
 import type { RoleCode } from '../../domain/permissions';
 import type {
   ApprovalDecisionInput,
+  CampaignMetadataInput,
   ClientInput,
   InvoiceInput,
   PromotionInput,
@@ -135,6 +138,57 @@ let clients: Client[] = [
     createdAt: iso(-120),
     updatedAt: iso(-2),
     archivedAt: null,
+  },
+];
+
+const publishingAccounts: PublishingAccount[] = [
+  {
+    id: 'account-instagram-sentient',
+    platform: 'INSTAGRAM',
+    accountName: 'Sentient official',
+    handle: '@sentient.agency',
+    accountUrl: 'https://www.instagram.com/sentient.agency',
+    ownershipType: 'SENTIENT_OWNED',
+    partnerName: null,
+    active: true,
+    defaultPublisherName: 'Noah Williams',
+    notes: 'Primary internal account.',
+  },
+  {
+    id: 'account-linkedin-sentient',
+    platform: 'LINKEDIN',
+    accountName: 'Sentient company page',
+    handle: 'sentient-agency',
+    accountUrl: 'https://www.linkedin.com/company/sentient-agency',
+    ownershipType: 'SENTIENT_OWNED',
+    partnerName: null,
+    active: true,
+    defaultPublisherName: 'Noah Williams',
+    notes: null,
+  },
+  {
+    id: 'account-x-arcadia',
+    platform: 'X',
+    accountName: 'Arcadia Hotels X',
+    handle: '@arcadiahotels',
+    accountUrl: 'https://x.com/arcadiahotels',
+    ownershipType: 'CLIENT_OWNED',
+    partnerName: null,
+    active: true,
+    defaultPublisherName: 'Noah Williams',
+    notes: 'Client approval required before publishing.',
+  },
+  {
+    id: 'account-x-partner',
+    platform: 'X',
+    accountName: 'Travel Network partner account',
+    handle: 'travel-network',
+    accountUrl: 'https://x.com/travel-network',
+    ownershipType: 'EXTERNAL_PARTNER',
+    partnerName: 'Travel Network',
+    active: false,
+    defaultPublisherName: null,
+    notes: 'Retained for historical campaign records.',
   },
 ];
 
@@ -294,6 +348,43 @@ const resourceFor = (promotionId: string, index = 1): ResourceLink => ({
 
 const resourcesByPromotion = new Map<string, ResourceLink[]>(
   promotions.map((item) => [item.id, [resourceFor(item.id)]]),
+);
+
+function metadataFromInput(promotionId: string, input?: CampaignMetadataInput): CampaignMetadata {
+  const value = input ?? {
+    campaignType: 'Social campaign',
+    scheduledDate: '',
+    priority: 'NORMAL' as const,
+    briefUrl: '',
+    clientMaterialLinks: '',
+    externalResourceLinks: '',
+    platforms: ['INSTAGRAM'],
+    publishingAccountIds: ['account-instagram-sentient'],
+    externalPartnerAccountIds: [],
+    internalNotes: '',
+  };
+  const links = (raw: string) =>
+    raw
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  return {
+    promotionId,
+    campaignType: value.campaignType,
+    scheduledDate: value.scheduledDate || null,
+    priority: value.priority,
+    briefUrl: value.briefUrl || null,
+    clientMaterialLinks: links(value.clientMaterialLinks),
+    externalResourceLinks: links(value.externalResourceLinks),
+    platforms: value.platforms,
+    publishingAccountIds: value.publishingAccountIds,
+    externalPartnerAccountIds: value.externalPartnerAccountIds,
+    internalNotes: value.internalNotes || null,
+  };
+}
+
+const metadataByPromotion = new Map<string, CampaignMetadata>(
+  promotions.map((item) => [item.id, metadataFromInput(item.id)]),
 );
 
 const publicationIdFor = (promotionId: string) => `${promotionId.slice(0, 28)}8001`;
@@ -475,6 +566,18 @@ function detailFor(item: Promotion): PromotionDetail {
   ].includes(item.status);
   return {
     promotion: { ...item },
+    metadata: metadataByPromotion.get(item.id)
+      ? {
+          ...metadataByPromotion.get(item.id)!,
+          clientMaterialLinks: [...metadataByPromotion.get(item.id)!.clientMaterialLinks],
+          externalResourceLinks: [...metadataByPromotion.get(item.id)!.externalResourceLinks],
+          platforms: [...metadataByPromotion.get(item.id)!.platforms],
+          publishingAccountIds: [...metadataByPromotion.get(item.id)!.publishingAccountIds],
+          externalPartnerAccountIds: [
+            ...metadataByPromotion.get(item.id)!.externalPartnerAccountIds,
+          ],
+        }
+      : null,
     resources: [...resources],
     submissions:
       hasSubmission && resources[0]
@@ -556,6 +659,7 @@ export const demoCampaignService: CampaignService = {
     const counts: DashboardData['counts'] = {};
     promotions.forEach((item) => (counts[item.status] = (counts[item.status] ?? 0) + 1));
     return {
+      promotions: promotions.map((item) => ({ ...item })),
       counts,
       attention: promotions.filter((item) =>
         [
@@ -578,12 +682,51 @@ export const demoCampaignService: CampaignService = {
     };
   },
 
+  async listFinanceCalendarEvents() {
+    return Array.from(invoicesByPromotion.values()).flatMap((invoice) => {
+      const promotion = promotions.find((item) => item.id === invoice.promotionId);
+      const date = invoice.paidAt ?? invoice.issuedAt ?? invoice.createdAt;
+      if (!promotion || !date) return [];
+      return [
+        {
+          id: invoice.id,
+          promotionId: invoice.promotionId,
+          title: promotion.title,
+          clientName: promotion.clientName,
+          date: date.slice(0, 10),
+          status: invoice.status,
+          amount: invoice.amount,
+          currency: invoice.currency,
+          invoiceNumber: invoice.invoiceNumber,
+        },
+      ];
+    });
+  },
+
   async getPromotion(id) {
     return detailFor(findPromotion(id));
   },
 
+  async saveCampaignMetadata(id, input) {
+    findPromotion(id);
+    const metadata = metadataFromInput(id, input);
+    metadataByPromotion.set(id, metadata);
+    return {
+      ...metadata,
+      clientMaterialLinks: [...metadata.clientMaterialLinks],
+      externalResourceLinks: [...metadata.externalResourceLinks],
+      platforms: [...metadata.platforms],
+      publishingAccountIds: [...metadata.publishingAccountIds],
+      externalPartnerAccountIds: [...metadata.externalPartnerAccountIds],
+    };
+  },
+
   async listClients() {
     return clients.filter((item) => !item.archivedAt).map((item) => ({ ...item }));
+  },
+
+  async listPublishingAccounts() {
+    return publishingAccounts.map((item) => ({ ...item }));
   },
 
   async listProfiles(role?: RoleCode) {
@@ -643,6 +786,16 @@ export const demoCampaignService: CampaignService = {
       email: input.email,
       displayName: input.displayName,
       status: 'INVITED',
+      roles: input.roles,
+    });
+  },
+
+  async createUser(input) {
+    profiles.push({
+      id: crypto.randomUUID(),
+      email: input.email,
+      displayName: input.displayName,
+      status: 'ACTIVE',
       roles: input.roles,
     });
   },
@@ -735,6 +888,7 @@ export const demoCampaignService: CampaignService = {
       },
     );
     promotions = [item, ...promotions];
+    metadataByPromotion.set(item.id, metadataFromInput(item.id, input.metadata));
     transition(item, 'DRAFT', 'PromotionCreated');
     return { ...item };
   },

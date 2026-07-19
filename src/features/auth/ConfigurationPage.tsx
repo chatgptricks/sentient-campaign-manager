@@ -11,10 +11,10 @@ export function ConfigurationPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--background)] p-6">
       <div className="w-full max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-7 sm:p-9">
-        <div className="grid size-12 place-items-center rounded-lg bg-[var(--acid)]/8 text-[var(--acid)]">
+        <div className="grid size-12 place-items-center rounded-lg bg-[var(--acid)]/8 text-[var(--acid-ink)]">
           <ServerCog className="size-6" />
         </div>
-        <p className="mt-6 text-xs font-bold tracking-[0.14em] text-[var(--acid)] uppercase">
+        <p className="mt-6 text-xs font-bold tracking-[0.14em] text-[var(--acid-ink)] uppercase">
           Configuration health
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[var(--text)]">

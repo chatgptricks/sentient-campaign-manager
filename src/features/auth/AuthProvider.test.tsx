@@ -67,7 +67,10 @@ describe('AuthProvider recovery callback cleanup', () => {
     await user.click(screen.getByRole('button', { name: 'Save password' }));
 
     await waitFor(() => expect(screen.getByTestId('credential-setup')).toHaveTextContent('none'));
-    expect(updateUser).toHaveBeenCalledWith({ password: 'Sentient1234' });
+    expect(updateUser).toHaveBeenCalledWith({
+      password: 'Sentient1234',
+      data: { must_change_password: false },
+    });
     expect(window.location.pathname).toBe('/sentient-campaign-manager/');
     expect(window.location.search).toBe('');
     expect(window.location.hash).toBe('#/dashboard');

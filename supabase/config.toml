@@ -80,7 +80,8 @@ minimum_password_length = 8
 password_requirements = "letters_digits"
 
 [auth.email]
-enable_signup = false
+# Keep email authentication available for invited users; global signup remains disabled above.
+enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 secure_password_change = true

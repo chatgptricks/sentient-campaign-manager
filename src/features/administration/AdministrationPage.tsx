@@ -8,6 +8,7 @@ import {
   Cable,
   CircleAlert,
   CircleCheck,
+  KeyRound,
   MailPlus,
   Play,
   RefreshCw,
@@ -21,7 +22,12 @@ import type { Profile } from '../../domain/models';
 import { roleCodes, roleLabel, type RoleCode } from '../../domain/permissions';
 import { campaignService } from '../../lib/data';
 import { getFriendlyError } from '../../domain/errors';
-import { inviteUserSchema, type InviteUserInput } from '../../lib/validation/schemas';
+import {
+  createUserSchema,
+  inviteUserSchema,
+  type CreateUserInput,
+  type InviteUserInput,
+} from '../../lib/validation/schemas';
 import { formatDateTime } from '../../lib/utils';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -34,39 +40,24 @@ import { MetricCard } from '../../components/ui/MetricCard';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useAuth } from '../auth/AuthProvider';
 
-function RolePicker({
-  selected,
-  onChange,
-}: {
-  selected: RoleCode[];
-  onChange(roles: RoleCode[]): void;
-}) {
+function RoleSelect({ value, onChange }: { value?: RoleCode; onChange(role: RoleCode): void }) {
   return (
-    <fieldset>
-      <legend className="text-sm font-semibold text-[var(--text)]">Application roles</legend>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+    <Field label="Application role" htmlFor="application-role">
+      <Select
+        id="application-role"
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value as RoleCode)}
+      >
+        <option value="" disabled>
+          Select role level
+        </option>
         {roleCodes.map((role) => (
-          <label
-            key={role}
-            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text-muted)] transition hover:border-[var(--border-strong)]"
-          >
-            <input
-              type="checkbox"
-              className="size-4 accent-[var(--acid)]"
-              checked={selected.includes(role)}
-              onChange={(event) =>
-                onChange(
-                  event.target.checked
-                    ? [...selected, role]
-                    : selected.filter((item) => item !== role),
-                )
-              }
-            />
+          <option key={role} value={role}>
             {roleLabel[role]}
-          </label>
+          </option>
         ))}
-      </div>
-    </fieldset>
+      </Select>
+    </Field>
   );
 }
 
@@ -90,15 +81,18 @@ function InviteUserDialog({ onInvited }: { onInvited(): void }) {
   return (
     <Dialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) form.reset();
+      }}
       trigger={
-        <Button>
+        <Button variant="secondary">
           <MailPlus className="size-4" />
           Invite user
         </Button>
       }
       title="Invite team member"
-      description="Public signup is disabled. Administrators invite users and assign their initial application roles."
+      description="Public signup is disabled. Administrators invite users and assign their application role level."
     >
       <form className="grid gap-5" onSubmit={form.handleSubmit((input) => mutation.mutate(input))}>
         <Field
@@ -111,19 +105,119 @@ function InviteUserDialog({ onInvited }: { onInvited(): void }) {
         <Field label="Email" htmlFor="invite-email" error={form.formState.errors.email?.message}>
           <Input id="invite-email" type="email" autoComplete="email" {...form.register('email')} />
         </Field>
-        <RolePicker
-          selected={roles}
-          onChange={(value) => form.setValue('roles', value, { shouldValidate: true })}
+        <RoleSelect
+          value={roles[0]}
+          onChange={(role) => form.setValue('roles', [role], { shouldValidate: true })}
         />
         {form.formState.errors.roles?.message ? (
           <p className="text-xs text-red-300">{form.formState.errors.roles.message}</p>
         ) : null}
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setOpen(false);
+              form.reset();
+            }}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? 'Inviting…' : 'Send invitation'}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+function CreateUserDialog({ onCreated }: { onCreated(): void }) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<CreateUserInput>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: { displayName: '', email: '', temporaryPassword: '', roles: [] },
+  });
+  const mutation = useMutation({
+    mutationFn: campaignService.createUser,
+    onSuccess: () => {
+      toast.success('User created. They must change the temporary password on first login.');
+      setOpen(false);
+      form.reset();
+      onCreated();
+    },
+    onError: (error) => toast.error(getFriendlyError(error)),
+  });
+  const roles = form.watch('roles');
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) form.reset();
+      }}
+      trigger={
+        <Button>
+          <KeyRound className="size-4" />
+          Create user
+        </Button>
+      }
+      title="Create team member"
+      description="Create the account directly with a temporary password. The user must replace it on first login."
+    >
+      <form className="grid gap-5" onSubmit={form.handleSubmit((input) => mutation.mutate(input))}>
+        <Field
+          label="Display name"
+          htmlFor="create-user-name"
+          error={form.formState.errors.displayName?.message}
+        >
+          <Input id="create-user-name" autoComplete="name" {...form.register('displayName')} />
+        </Field>
+        <Field
+          label="Email"
+          htmlFor="create-user-email"
+          error={form.formState.errors.email?.message}
+        >
+          <Input
+            id="create-user-email"
+            type="email"
+            autoComplete="email"
+            {...form.register('email')}
+          />
+        </Field>
+        <Field
+          label="Temporary password"
+          htmlFor="create-user-password"
+          hint="At least 10 characters, including a letter and a number."
+          error={form.formState.errors.temporaryPassword?.message}
+        >
+          <Input
+            id="create-user-password"
+            type="password"
+            autoComplete="new-password"
+            {...form.register('temporaryPassword')}
+          />
+        </Field>
+        <RoleSelect
+          value={roles[0]}
+          onChange={(role) => form.setValue('roles', [role], { shouldValidate: true })}
+        />
+        {form.formState.errors.roles?.message ? (
+          <p className="text-xs text-red-300">{form.formState.errors.roles.message}</p>
+        ) : null}
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setOpen(false);
+              form.reset();
+            }}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? 'Creating…' : 'Create user'}
           </Button>
         </div>
       </form>
@@ -176,7 +270,7 @@ function ManageUserDialog({
             <option value="SUSPENDED">Suspended</option>
           </Select>
         </Field>
-        <RolePicker selected={roles} onChange={setRoles} />
+        <RoleSelect value={roles[0]} onChange={(role) => setRoles([role])} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
@@ -256,7 +350,12 @@ export function AdministrationPage() {
         eyebrow="Administrator controls"
         title="Administration"
         description="Manage internal access, truthful integration modes, and operational delivery health."
-        actions={<InviteUserDialog onInvited={() => void users.refetch()} />}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <CreateUserDialog onCreated={() => void users.refetch()} />
+            <InviteUserDialog onInvited={() => void users.refetch()} />
+          </div>
+        }
       />
       <Tabs.Root defaultValue="users">
         <Tabs.List
@@ -286,7 +385,7 @@ export function AdministrationPage() {
           <Card>
             <CardHeader
               title="Internal users"
-              description="One person can hold multiple application roles."
+              description="Create accounts directly with a temporary password, or send an invitation. Each person has one hierarchical role level."
             />
             <div className="overflow-x-auto">
               <table className="data-table">
@@ -294,7 +393,7 @@ export function AdministrationPage() {
                   <tr>
                     <th>Name</th>
                     <th>Status</th>
-                    <th>Roles</th>
+                    <th>Role</th>
                     <th>
                       <span className="sr-only">Actions</span>
                     </th>
@@ -356,7 +455,7 @@ export function AdministrationPage() {
               {healthData.connections.map((connection) => (
                 <article key={connection.id} className="bg-[var(--surface-raised)] p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="grid size-10 place-items-center rounded-lg bg-white/5 text-[var(--acid)]">
+                    <div className="grid size-10 place-items-center rounded-lg bg-white/5 text-[var(--acid-ink)]">
                       <Cable className="size-4" />
                     </div>
                     <Badge
@@ -455,7 +554,7 @@ export function AdministrationPage() {
             />
             <CardBody>
               <div className="flex items-start gap-3 rounded-lg border border-[var(--acid)]/15 bg-[var(--acid)]/5 p-4">
-                <CircleCheck className="mt-0.5 size-4 shrink-0 text-[var(--acid)]" />
+                <CircleCheck className="mt-0.5 size-4 shrink-0 text-[var(--acid-ink)]" />
                 <p className="text-sm leading-6 text-[var(--text-muted)]">
                   The browser never reads outbox payloads. This control invokes the authenticated
                   server-side worker and returns only sanitized counts.
@@ -526,7 +625,7 @@ export function AdministrationPage() {
             ) : (
               <CardBody>
                 <div className="flex items-start gap-3 rounded-lg border border-[var(--acid)]/15 bg-[var(--acid)]/5 p-4">
-                  <CircleCheck className="mt-0.5 size-4 shrink-0 text-[var(--acid)]" />
+                  <CircleCheck className="mt-0.5 size-4 shrink-0 text-[var(--acid-ink)]" />
                   <p className="text-sm text-[var(--text-muted)]">
                     No failed or dead-letter outbox jobs need attention.
                   </p>

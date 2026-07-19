@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { publishingChannels } from '../../domain/channels';
+
 export const loginSchema = z.object({
   email: z.email('Enter a valid email address.'),
   password: z.string(),
@@ -25,6 +27,29 @@ export const clientSchema = z.object({
   billingAddress: z.string().trim().max(500),
 });
 
+export const campaignMetadataSchema = z.object({
+  campaignType: z.string().trim().min(2, 'Campaign type is required.').max(80),
+  scheduledDate: z
+    .string()
+    .refine(
+      (value) => !value || !Number.isNaN(Date.parse(value)),
+      'Choose a valid scheduled date.',
+    ),
+  priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
+  briefUrl: z.union([
+    z.literal(''),
+    z
+      .url('Enter a valid brief URL.')
+      .refine((value) => value.startsWith('https://'), 'Only HTTPS links are allowed.'),
+  ]),
+  clientMaterialLinks: z.string().trim().max(4000),
+  externalResourceLinks: z.string().trim().max(4000),
+  platforms: z.array(z.enum(publishingChannels)).min(1, 'Choose at least one channel.'),
+  publishingAccountIds: z.array(z.uuid()),
+  externalPartnerAccountIds: z.array(z.uuid()),
+  internalNotes: z.string().trim().max(2000),
+});
+
 export const promotionSchema = z.object({
   clientId: z.uuid('Choose a client.'),
   title: z.string().trim().min(3, 'Promotion title is required.').max(160),
@@ -33,6 +58,7 @@ export const promotionSchema = z.object({
     .string()
     .refine((value) => !value || !Number.isNaN(Date.parse(value)), 'Choose a valid date.'),
   salesOwnerId: z.uuid('Choose a sales owner.'),
+  metadata: campaignMetadataSchema.optional(),
 });
 
 export const promotionEditSchema = promotionSchema.pick({
@@ -66,7 +92,7 @@ export const approvalDecisionSchema = z
   });
 
 export const publicationSchema = z.object({
-  provider: z.string().trim().min(2, 'Provider is required.').max(80),
+  provider: z.enum(publishingChannels),
   destination: z.string().trim().min(2, 'Destination is required.').max(120),
   publicationUrl: z
     .url('Enter a valid publication URL.')
@@ -118,13 +144,18 @@ export const inviteUserSchema = z.object({
   displayName: z.string().trim().min(2, 'Display name is required.').max(120),
   email: z.email('Enter a valid email address.'),
   roles: z
-    .array(z.enum(['SALES', 'CREATOR', 'APPROVER', 'PUBLISHER', 'FINANCE', 'ADMINISTRATOR']))
-    .min(1, 'Choose at least one role.'),
+    .array(z.enum(['ADMINISTRATOR', 'FINANCE', 'SALES', 'APPROVER', 'CREATOR', 'PUBLISHER']))
+    .length(1, 'Choose exactly one role level.'),
+});
+
+export const createUserSchema = inviteUserSchema.extend({
+  temporaryPassword: passwordSetupSchema.shape.password,
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type PasswordSetupInput = z.infer<typeof passwordSetupSchema>;
 export type ClientInput = z.infer<typeof clientSchema>;
+export type CampaignMetadataInput = z.infer<typeof campaignMetadataSchema>;
 export type PromotionInput = z.infer<typeof promotionSchema>;
 export type PromotionEditInput = z.infer<typeof promotionEditSchema>;
 export type ResourceLinkInput = z.infer<typeof resourceLinkSchema>;
@@ -134,3 +165,4 @@ export type VerificationInput = z.infer<typeof verificationSchema>;
 export type InvoiceInput = z.infer<typeof invoiceSchema>;
 export type IssueInvoiceInput = z.infer<typeof issueInvoiceSchema>;
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
+export type CreateUserInput = z.infer<typeof createUserSchema>;

@@ -4,14 +4,15 @@ import { getEnv } from '../env.ts';
 import { databaseError, HttpError } from '../errors.ts';
 import { executeIdempotently, recordIntegrationAttempt } from '../idempotency.ts';
 
-const allowedRoles = new Set([
+const roleOrder = [
   'ADMINISTRATOR',
+  'FINANCE',
+  'SALES',
   'APPROVER',
   'CREATOR',
-  'FINANCE',
   'PUBLISHER',
-  'SALES',
-]);
+] as const;
+const allowedRoles = new Set<string>(roleOrder);
 const allowedStatuses = new Set(['ACTIVE', 'INVITED', 'SUSPENDED']);
 
 export function normalizeEmail(input: unknown): string {
@@ -26,11 +27,38 @@ export function normalizeRoleCodes(input: unknown): string[] {
   if (!Array.isArray(input)) {
     throw new HttpError(400, 'ROLES_INVALID', 'roles must be an array.');
   }
-  const roles = [...new Set(input.map((role) => String(role).trim().toUpperCase()))].sort();
+  const roles = [...new Set(input.map((role) => String(role).trim().toUpperCase()))].sort(
+    (left, right) =>
+      roleOrder.indexOf(left as (typeof roleOrder)[number]) -
+      roleOrder.indexOf(right as (typeof roleOrder)[number]),
+  );
   if (roles.some((role) => !allowedRoles.has(role))) {
     throw new HttpError(400, 'ROLES_INVALID', 'One or more role codes are invalid.');
   }
+  if (roles.length !== 1) {
+    throw new HttpError(400, 'ROLES_INVALID', 'Exactly one hierarchical role is required.');
+  }
   return roles;
+}
+
+function normalizeDisplayName(input: unknown): string {
+  const displayName = typeof input === 'string' ? input.trim().slice(0, 120) : '';
+  if (!displayName) {
+    throw new HttpError(400, 'DISPLAY_NAME_REQUIRED', 'displayName is required.');
+  }
+  return displayName;
+}
+
+function normalizeTemporaryPassword(input: unknown): string {
+  const password = typeof input === 'string' ? input : '';
+  if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    throw new HttpError(
+      400,
+      'TEMPORARY_PASSWORD_INVALID',
+      'The temporary password must have at least 10 characters, one letter, and one number.',
+    );
+  }
+  return password;
 }
 
 async function userRoleCodes(client: DatabaseClient, userId: string): Promise<string[]> {
@@ -101,11 +129,7 @@ export async function inviteUser(
   idempotencyKey: string,
 ): Promise<Record<string, unknown>> {
   const email = normalizeEmail(input.email);
-  const displayName =
-    typeof input.displayName === 'string' ? input.displayName.trim().slice(0, 120) : '';
-  if (!displayName) {
-    throw new HttpError(400, 'DISPLAY_NAME_REQUIRED', 'displayName is required.');
-  }
+  const displayName = normalizeDisplayName(input.displayName);
   const rolesSupplied = input.roles !== undefined;
   const desiredRoles = rolesSupplied ? normalizeRoleCodes(input.roles) : [];
   return executeIdempotently(
@@ -164,6 +188,73 @@ export async function inviteUser(
         status: 'SUCCEEDED',
       });
       return { duplicate: false, existing: !invited, invited, user };
+    },
+  );
+}
+
+export async function createUser(
+  serviceClient: DatabaseClient,
+  auth: AuthContext,
+  input: {
+    displayName?: unknown;
+    email?: unknown;
+    roles?: unknown;
+    temporaryPassword?: unknown;
+  },
+  idempotencyKey: string,
+): Promise<Record<string, unknown>> {
+  const email = normalizeEmail(input.email);
+  const displayName = normalizeDisplayName(input.displayName);
+  const temporaryPassword = normalizeTemporaryPassword(input.temporaryPassword);
+  const desiredRoles = normalizeRoleCodes(input.roles);
+
+  return executeIdempotently(
+    serviceClient,
+    'SUPABASE_AUTH',
+    'CREATE_USER',
+    idempotencyKey,
+    async () => {
+      const existingResult = await serviceClient
+        .from('profiles')
+        .select('id,status')
+        .ilike('email', email)
+        .maybeSingle();
+      if (existingResult.error) {
+        throw databaseError(existingResult.error, 'Existing user could not be checked.');
+      }
+      if (existingResult.data) {
+        throw new HttpError(
+          409,
+          'USER_ALREADY_EXISTS',
+          'A user with this email already exists. Manage the existing account instead.',
+        );
+      }
+
+      const { data, error } = await serviceClient.auth.admin.createUser({
+        email,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          display_name: displayName,
+          must_change_password: true,
+        },
+      });
+      if (error || !data.user) {
+        throw new HttpError(502, 'CREATE_USER_FAILED', 'The user account could not be created.');
+      }
+
+      await replaceUserRoles(serviceClient, auth, data.user.id, desiredRoles);
+      const user = await userSummary(serviceClient, data.user.id);
+      await recordIntegrationAttempt(serviceClient, {
+        aggregateId: data.user.id,
+        idempotencyKey,
+        operation: 'CREATE_USER',
+        provider: 'SUPABASE_AUTH',
+        requestMetadata: { roleCount: desiredRoles.length },
+        responseMetadata: { userId: data.user.id, mustChangePassword: true },
+        status: 'SUCCEEDED',
+      });
+      return { duplicate: false, created: true, user };
     },
   );
 }

@@ -11,6 +11,7 @@ import { NoAccessPage } from '../features/auth/NoAccessPage';
 import { PasswordSetupPage } from '../features/auth/PasswordSetupPage';
 import { isSupabaseConfigured, publicConfig } from '../lib/supabase/config';
 import { NotFoundPage } from './NotFoundPage';
+import { canViewFinanceQueue } from '../features/my-work/visibility';
 
 const DashboardPage = lazy(() =>
   import('../features/dashboard/DashboardPage').then((module) => ({
@@ -21,6 +22,19 @@ const PromotionsPage = lazy(() =>
   import('../features/promotions/PromotionsPage').then((module) => ({
     default: module.PromotionsPage,
   })),
+);
+const CalendarPage = lazy(() =>
+  import('../features/calendar/CalendarPage').then((module) => ({
+    default: module.CalendarPage,
+  })),
+);
+const PublishingAccountsPage = lazy(() =>
+  import('../features/publishing-accounts/PublishingAccountsPage').then((module) => ({
+    default: module.PublishingAccountsPage,
+  })),
+);
+const FinancePage = lazy(() =>
+  import('../features/finance/FinancePage').then((module) => ({ default: module.FinancePage })),
 );
 const CreatePromotionPage = lazy(() =>
   import('../features/promotions/CreatePromotionPage').then((module) => ({
@@ -34,6 +48,11 @@ const PromotionDetailPage = lazy(() =>
 );
 const ClientsPage = lazy(() =>
   import('../features/clients/ClientsPage').then((module) => ({ default: module.ClientsPage })),
+);
+const ClientDetailPage = lazy(() =>
+  import('../features/clients/ClientDetailPage').then((module) => ({
+    default: module.ClientDetailPage,
+  })),
 );
 const MyWorkPage = lazy(() =>
   import('../features/my-work/MyWorkPage').then((module) => ({ default: module.MyWorkPage })),
@@ -76,6 +95,12 @@ function SalesRoute() {
   return <Outlet />;
 }
 
+function FinanceRoute() {
+  const { profile } = useAuth();
+  if (!canViewFinanceQueue(profile?.roles ?? [])) return <Navigate to="/dashboard" replace />;
+  return <Outlet />;
+}
+
 export function AppRouter() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -83,12 +108,20 @@ export function AppRouter() {
         <Route element={<ProtectedLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="campaigns" element={<PromotionsPage />} />
           <Route path="promotions" element={<PromotionsPage />} />
           <Route element={<SalesRoute />}>
             <Route path="promotions/new" element={<CreatePromotionPage />} />
           </Route>
           <Route path="promotions/:id" element={<PromotionDetailPage />} />
           <Route path="clients" element={<ClientsPage />} />
+          <Route path="clients/:id" element={<ClientDetailPage />} />
+          <Route path="channels" element={<PublishingAccountsPage />} />
+          <Route path="publishing-accounts" element={<PublishingAccountsPage />} />
+          <Route element={<FinanceRoute />}>
+            <Route path="finance" element={<FinancePage />} />
+          </Route>
           <Route path="my-work" element={<MyWorkPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route element={<AdministratorRoute />}>

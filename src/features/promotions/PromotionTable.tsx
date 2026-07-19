@@ -16,6 +16,7 @@ import { formatDate, formatRelativeTime } from '../../lib/utils';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PromotionStatusBadge } from './PromotionStatusBadge';
+import { getCurrentOwnerName } from './presentation-helpers';
 
 const columnHelper = createColumnHelper<Promotion>();
 
@@ -30,11 +31,11 @@ export function PromotionTable({
   const columns = useMemo(
     () => [
       columnHelper.accessor('title', {
-        header: 'Promotion',
+        header: 'Campaign',
         cell: ({ row, getValue }) => (
           <div className="min-w-52">
             <Link
-              className="font-semibold text-[var(--text)] hover:text-[var(--acid)] focus-visible:underline focus-visible:outline-none"
+              className="font-semibold text-[var(--text)] hover:text-[var(--acid-ink)] focus-visible:underline focus-visible:outline-none"
               to={`/promotions/${row.original.id}`}
             >
               {getValue()}
@@ -47,9 +48,10 @@ export function PromotionTable({
         header: 'Status',
         cell: (info) => <PromotionStatusBadge status={info.getValue()} />,
       }),
-      columnHelper.accessor('salesOwnerName', {
-        header: 'Sales owner',
-        cell: (info) => info.getValue(),
+      columnHelper.display({
+        id: 'currentOwner',
+        header: 'Current owner · Sales owner',
+        cell: ({ row }) => getCurrentOwnerName(row.original),
       }),
       columnHelper.accessor('creatorName', {
         header: 'Creator',
@@ -74,6 +76,15 @@ export function PromotionTable({
         header: 'Updated',
         cell: (info) => <span title={info.getValue()}>{formatRelativeTime(info.getValue())}</span>,
       }),
+      columnHelper.display({
+        id: 'progress',
+        header: 'Progress',
+        cell: ({ row }) => (
+          <span className="text-xs text-[var(--text-muted)]">
+            {row.original.status.replaceAll('_', ' ')}
+          </span>
+        ),
+      }),
     ],
     [],
   );
@@ -92,8 +103,8 @@ export function PromotionTable({
   if (promotions.length === 0) {
     return (
       <EmptyState
-        title="No promotions found"
-        description="Adjust the filters or create the first promotion for this workspace."
+        title="No campaigns found"
+        description="Adjust the filters or create the first campaign for this workspace."
         action={emptyAction}
       />
     );

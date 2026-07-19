@@ -10,6 +10,15 @@ export type AuthContext = {
   userClient: DatabaseClient;
 };
 
+const roleRank: Record<string, number> = {
+  ADMINISTRATOR: 60,
+  FINANCE: 50,
+  SALES: 40,
+  APPROVER: 30,
+  CREATOR: 20,
+  PUBLISHER: 10,
+};
+
 function bearerToken(request: Request): string | undefined {
   const authorization = request.headers.get('authorization')?.trim();
   const match = authorization?.match(/^Bearer\s+(.+)$/i);
@@ -114,9 +123,25 @@ export async function authenticateUser(
 }
 
 export function requireAnyRole(context: AuthContext, allowedRoles: string[]): void {
-  if (!allowedRoles.some((role) => context.roles.has(role.toUpperCase()))) {
+  const allowedRanks = allowedRoles
+    .map((role) => roleRank[role.toUpperCase()])
+    .filter((rank): rank is number => rank !== undefined);
+  const authorized = [...context.roles].some((role) => {
+    const currentRank = roleRank[role.toUpperCase()];
+    return currentRank !== undefined && allowedRanks.some((rank) => currentRank >= rank);
+  });
+  if (!authorized) {
     throw new HttpError(403, 'FORBIDDEN', 'You do not have permission for this action.');
   }
+}
+
+export function hasRole(context: AuthContext, allowedRole: string): boolean {
+  const requiredRank = roleRank[allowedRole.toUpperCase()];
+  if (requiredRank === undefined) return false;
+  return [...context.roles].some((role) => {
+    const currentRank = roleRank[role.toUpperCase()];
+    return currentRank !== undefined && currentRank >= requiredRank;
+  });
 }
 
 export async function requireInternalOrRoles(

@@ -26,7 +26,7 @@ export function MetricCard({
           </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">{detail}</p>
         </div>
-        <div className="grid size-10 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid)]">
+        <div className="grid size-10 place-items-center rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/8 text-[var(--acid-ink)]">
           {icon}
         </div>
       </div>
