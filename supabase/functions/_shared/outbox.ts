@@ -1,4 +1,6 @@
+import { SlackNotificationAdapter } from './adapters/notification.ts';
 import type { DatabaseClient } from './database.ts';
+import { getEnv } from './env.ts';
 import { databaseError, HttpError } from './errors.ts';
 import { executeIdempotently, recordIntegrationAttempt } from './idempotency.ts';
 import { sanitizeText } from './logging.ts';
@@ -240,7 +242,7 @@ async function createPayloadNotification(
     notificationIds.push(data.id);
 
     // If SLACK_BOT_TOKEN is present in env, dispatch Slack notification to channel & user DM
-    const botToken = Deno.env.get('SLACK_BOT_TOKEN');
+    const botToken = getEnv('SLACK_BOT_TOKEN');
     if (botToken) {
       try {
         const { data: profile } = await client
