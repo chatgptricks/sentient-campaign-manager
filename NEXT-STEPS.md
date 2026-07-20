@@ -4,16 +4,16 @@
 
 Verified today in a clean Linux sandbox on current HEAD (`c370b04` — simplify workflow to creator/posting/finance):
 
-| Check | Result |
-| --- | --- |
-| Prettier | Pass |
-| ESLint (zero warnings) | Pass |
-| TypeScript strict (`tsc -b`) | Pass |
-| Unit/component tests | 35/35 pass |
-| Edge Function tests | 50/50 pass |
-| Production build | Pass |
-| pgTAP + real-backend E2E | Not runnable here (needs Docker) — must run in CI or locally |
-| Production URL | `https://chatgptricks.github.io/sentient-campaign-manager/` responds correctly |
+| Check                        | Result                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| Prettier                     | Pass                                                                           |
+| ESLint (zero warnings)       | Pass                                                                           |
+| TypeScript strict (`tsc -b`) | Pass                                                                           |
+| Unit/component tests         | 35/35 pass                                                                     |
+| Edge Function tests          | 50/50 pass                                                                     |
+| Production build             | Pass                                                                           |
+| pgTAP + real-backend E2E     | Not runnable here (needs Docker) — must run in CI or locally                   |
+| Production URL               | `https://chatgptricks.github.io/sentient-campaign-manager/` responds correctly |
 
 The old handover issues are resolved in code: only the 3 roles (Administrator/Sales/Creator) exist in runtime, no visible "Campaign" copy, no condescending helper text found, and context menus exist on Clients, Channels, Users, Promotions table, and Calendar.
 
