@@ -1,0 +1,1 @@
+import{it as e}from"./LoadingState-pEk3cjRW.js";import{f as t,u as n}from"./ErrorState-DYq05gxF.js";import{t as r}from"./Badge-CFJJqf0y.js";var i=e();function a({status:e}){return(0,i.jsx)(r,{tone:t[e],children:n[e]})}export{a as t};

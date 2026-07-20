@@ -1,1 +1,0 @@
-import{f as e,g as t,h as n}from"./LoadingState-B4Iy1_tE.js";function r(e,r){let i=n(),a=r?.weekStartsOn??r?.locale?.options?.weekStartsOn??i.weekStartsOn??i.locale?.options?.weekStartsOn??0,o=t(e,r?.in),s=o.getDay(),c=(s<a?-7:0)+6-(s-a);return o.setDate(o.getDate()+c),o.setHours(23,59,59,999),o}function i(t){return e(Date.now(),t)}export{r as n,i as t};
