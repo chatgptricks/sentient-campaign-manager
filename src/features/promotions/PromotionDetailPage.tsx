@@ -54,6 +54,7 @@ import { formatDate, formatDateTime, formatMoney, formatRelativeTime } from '../
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
+import { ConfirmDialog, type ConfirmDialogState } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -403,17 +404,20 @@ function ResourcesSection({
   );
 }
 
-function CreativeSection({
+export function CreativeSection({
   detail,
+  onAdd,
   onStart,
   onSubmit,
 }: {
   detail: PromotionDetail;
+  onAdd(): void;
   onStart(): void;
   onSubmit(resourceId: string): void;
 }) {
   const activeResources = detail.resources.filter((resource) => !resource.archivedAt);
   const latestResource = activeResources[0];
+  const canAttach = detail.promotion.allowedActions.includes('ATTACH_RESOURCE');
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,.6fr)]">
       <Card>
@@ -438,6 +442,12 @@ function CreativeSection({
               <Button onClick={onStart}>
                 <Play className="size-4" />
                 Start work
+              </Button>
+            ) : null}
+            {canAttach ? (
+              <Button onClick={onAdd}>
+                <Plus className="size-4" />
+                Attach creative link
               </Button>
             ) : null}
           </div>
@@ -486,12 +496,26 @@ function CreativeSection({
                 Mark ready for approval
               </Button>
             ) : null}
+            {canAttach ? (
+              <Button className="mt-3 w-full" variant="secondary" onClick={onAdd}>
+                <Plus className="size-4" />
+                Attach another creative link
+              </Button>
+            ) : null}
           </CardBody>
         ) : (
           <EmptyState
             icon={<FileImage className="size-5" />}
             title="No deliverable yet"
-            description="Attach a resource before submitting creative for approval."
+            description="Attach the finished creative link before submitting it for approval."
+            action={
+              canAttach ? (
+                <Button onClick={onAdd}>
+                  <Plus className="size-4" />
+                  Attach creative link
+                </Button>
+              ) : undefined
+            }
           />
         )}
       </Card>
@@ -966,40 +990,16 @@ function FinanceSection({
                   </Button>
                 ) : null}
                 {detail.invoice.status === 'ISSUED' ? (
-                  <Button
-                    onClick={() => {
-                      if (window.confirm('Mark this invoice as paid?')) onSetStatus('PAID');
-                    }}
-                  >
+                  <Button onClick={() => onSetStatus('PAID')}>
                     <CircleDollarSign className="size-4" />
                     Mark paid
                   </Button>
                 ) : null}
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        'Mark this invoice as failed? The promotion will return to Ready for invoicing so Sales can register a replacement.',
-                      )
-                    )
-                      onSetStatus('FAILED');
-                  }}
-                >
+                <Button variant="secondary" onClick={() => onSetStatus('FAILED')}>
                   <MessageSquareWarning className="size-4" />
                   Mark failed
                 </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        'Void this invoice? The promotion will return to Ready for invoicing so Sales can register a replacement.',
-                      )
-                    )
-                      onSetStatus('VOID');
-                  }}
-                >
+                <Button variant="danger" onClick={() => onSetStatus('VOID')}>
                   <X className="size-4" />
                   Void invoice
                 </Button>
@@ -1088,6 +1088,7 @@ export function PromotionDetailPage() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [openingResourceId, setOpeningResourceId] = useState<string | null>(null);
   const query = useQuery({
@@ -1170,6 +1171,65 @@ export function PromotionDetailPage() {
   const currentPublication = detail.publications[0];
   const canViewFinance = canViewFinanceQueue(profile?.roles ?? []);
   const run = (request: ActionRequest) => action.mutate(request);
+  const requestInvoiceStatus = (status: Invoice['status']) => {
+    if (!detail.invoice) return;
+    const copy: Record<
+      string,
+      { title: string; description: string; label: string; danger?: boolean }
+    > = {
+      PAID: {
+        title: 'Mark this invoice as paid?',
+        description: 'The promotion will be ready to complete once payment is recorded.',
+        label: 'Mark paid',
+      },
+      FAILED: {
+        title: 'Mark this invoice as failed?',
+        description:
+          'The promotion will return to Ready for invoicing so Sales can register a replacement.',
+        label: 'Mark failed',
+      },
+      VOID: {
+        title: 'Void this invoice?',
+        description:
+          'The promotion will return to Ready for invoicing so Sales can register a replacement.',
+        label: 'Void invoice',
+        danger: true,
+      },
+    };
+    const dialogCopy = copy[status] ?? {
+      title: 'Update invoice status?',
+      description: 'The invoice status will be updated and recorded in the workflow history.',
+      label: 'Update status',
+    };
+    setConfirmDialog({
+      title: dialogCopy.title,
+      description: dialogCopy.description,
+      confirmLabel: dialogCopy.label,
+      intent: dialogCopy.danger ? 'danger' : 'default',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        run({
+          run: () =>
+            campaignService.setInvoiceStatus(detail.invoice!.id, status, promotion.version),
+          success: status === 'PAID' ? 'Invoice marked as paid.' : 'Invoice status updated.',
+        });
+      },
+    });
+  };
+  const requestArchiveResource = (resourceId: string) =>
+    setConfirmDialog({
+      title: 'Archive this resource?',
+      description: 'Existing workflow history will be preserved.',
+      confirmLabel: 'Archive resource',
+      intent: 'danger',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        run({
+          run: () => campaignService.archiveResource(resourceId),
+          success: 'Resource archived.',
+        });
+      },
+    });
 
   const tabs = [
     { value: 'overview', label: 'Overview' },
@@ -1388,17 +1448,7 @@ export function PromotionDetailPage() {
             onAdd={() => setDialog({ type: 'resource' })}
             onOpenPrivate={openPrivateAsset}
             openingResourceId={openingResourceId}
-            onArchive={(resourceId) => {
-              if (
-                window.confirm(
-                  'Archive this resource? Existing workflow history will be preserved.',
-                )
-              )
-                run({
-                  run: () => campaignService.archiveResource(resourceId),
-                  success: 'Resource archived.',
-                });
-            }}
+            onArchive={requestArchiveResource}
             onSubmit={(resourceId) =>
               run({
                 run: () =>
@@ -1411,6 +1461,7 @@ export function PromotionDetailPage() {
         <Tabs.Content value="creative" className="mt-6 focus-visible:outline-none">
           <CreativeSection
             detail={detail}
+            onAdd={() => setDialog({ type: 'resource' })}
             onStart={() =>
               run({
                 run: () => campaignService.startCreativeWork(promotion.id, promotion.version),
@@ -1451,15 +1502,7 @@ export function PromotionDetailPage() {
               canManage={hasAnyRole(profile?.roles ?? [], ['SALES'])}
               onCreate={() => setDialog({ type: 'invoice' })}
               onIssue={() => setDialog({ type: 'issue-invoice' })}
-              onSetStatus={(status) => {
-                if (!detail.invoice) return;
-                run({
-                  run: () =>
-                    campaignService.setInvoiceStatus(detail.invoice!.id, status, promotion.version),
-                  success:
-                    status === 'PAID' ? 'Invoice marked as paid.' : 'Invoice status updated.',
-                });
-              }}
+              onSetStatus={requestInvoiceStatus}
             />
           </Tabs.Content>
         ) : null}
@@ -1603,6 +1646,11 @@ export function PromotionDetailPage() {
             success: 'Promotion cancelled.',
           })
         }
+      />
+      <ConfirmDialog
+        state={confirmDialog}
+        pending={action.isPending}
+        onOpenChange={(open) => !open && setConfirmDialog(null)}
       />
 
       {action.isPending ? (

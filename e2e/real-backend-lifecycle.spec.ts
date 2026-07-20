@@ -54,8 +54,8 @@ async function openPromotion(page: Page, promotionHash: string, title: string) {
 async function processOutbox(page: Page) {
   await page.goto('./#/administration');
   await page.getByRole('tab', { name: 'Operations' }).click();
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Process pending batch' }).click();
+  await page.getByRole('button', { name: 'Process batch' }).click();
   await expect(page.getByText(/Worker completed\. \d+ events? processed\./).last()).toBeVisible({
     timeout: 15000,
   });

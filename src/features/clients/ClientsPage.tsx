@@ -12,6 +12,7 @@ import { formatDate } from '../../lib/utils';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { Card, CardBody } from '../../components/ui/Card';
+import { ConfirmDialog, type ConfirmDialogState } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -25,6 +26,7 @@ export function ClientsPage() {
     null,
   );
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ['clients', profile?.id],
@@ -50,6 +52,17 @@ export function ClientsPage() {
       }
     />
   ) : undefined;
+  const requestArchiveClient = (client: Client) =>
+    setConfirmDialog({
+      title: `Archive ${client.name}?`,
+      description: 'Existing promotions and audit history will remain available.',
+      confirmLabel: 'Archive client',
+      intent: 'danger',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        archiveClient.mutate(client.id);
+      },
+    });
 
   return (
     <div className="space-y-8">
@@ -115,15 +128,7 @@ export function ClientsPage() {
                       variant="ghost"
                       size="sm"
                       disabled={archiveClient.isPending}
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Archive ${client.name}? Existing promotions and audit history will remain available.`,
-                          )
-                        ) {
-                          archiveClient.mutate(client.id);
-                        }
-                      }}
+                      onClick={() => requestArchiveClient(client)}
                     >
                       <Archive className="size-3.5" />
                       Archive
@@ -194,21 +199,18 @@ export function ClientsPage() {
                       icon: <Archive className="size-4" />,
                       danger: true,
                       disabled: !canCreate,
-                      onSelect: () => {
-                        if (
-                          window.confirm(
-                            `Archive ${clientMenu.client.name}? Existing promotions and audit history will remain available.`,
-                          )
-                        ) {
-                          archiveClient.mutate(clientMenu.client.id);
-                        }
-                      },
+                      onSelect: () => requestArchiveClient(clientMenu.client),
                     },
                   ],
                 },
               ]
             : []
         }
+      />
+      <ConfirmDialog
+        state={confirmDialog}
+        pending={archiveClient.isPending}
+        onOpenChange={(open) => !open && setConfirmDialog(null)}
       />
     </div>
   );

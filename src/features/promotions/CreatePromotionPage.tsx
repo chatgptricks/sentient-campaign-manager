@@ -18,6 +18,10 @@ import { LoadingState } from '../../components/ui/LoadingState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { ClientFormDialog } from '../clients/ClientFormDialog';
 import { useAuth } from '../auth/AuthProvider';
+import {
+  getSelectablePublishingAccounts,
+  prunePublishingAccountIds,
+} from './channel-account-selection';
 
 export function CreatePromotionPage() {
   const navigate = useNavigate();
@@ -80,6 +84,12 @@ export function CreatePromotionPage() {
       />
     );
   }
+
+  const selectedPlatforms = form.watch('metadata.platforms') ?? [];
+  const visibleAccounts = getSelectablePublishingAccounts(
+    accountsQuery.data ?? [],
+    selectedPlatforms,
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -241,13 +251,23 @@ export function CreatePromotionPage() {
                       checked={(form.watch('metadata.platforms') ?? []).includes(platform)}
                       onChange={(event) => {
                         const current = form.getValues('metadata.platforms') ?? [];
-                        form.setValue(
-                          'metadata.platforms',
-                          event.target.checked
-                            ? [...current, platform]
-                            : current.filter((item) => item !== platform),
-                          { shouldValidate: true },
-                        );
+                        const nextPlatforms = event.target.checked
+                          ? [...current, platform]
+                          : current.filter((item) => item !== platform);
+                        form.setValue('metadata.platforms', nextPlatforms, {
+                          shouldValidate: true,
+                        });
+                        if (!event.target.checked) {
+                          form.setValue(
+                            'metadata.publishingAccountIds',
+                            prunePublishingAccountIds(
+                              form.getValues('metadata.publishingAccountIds') ?? [],
+                              accountsQuery.data ?? [],
+                              nextPlatforms,
+                            ),
+                            { shouldValidate: true },
+                          );
+                        }
                       }}
                     />
                     {publishingChannelLabel[platform]}
@@ -260,43 +280,61 @@ export function CreatePromotionPage() {
               htmlFor="promotion-publishing-accounts"
               hint="Choose the predefined accounts that become the promotion checklist."
             >
-              <div id="promotion-publishing-accounts" className="grid gap-2 sm:grid-cols-2">
-                {(accountsQuery.data ?? []).map((account: PublishingAccount) => {
-                  const selected = (form.watch('metadata.publishingAccountIds') ?? []).includes(
-                    account.id,
-                  );
-                  return (
-                    <label
-                      key={account.id}
-                      className={`flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 text-xs ${selected ? 'border-[var(--acid)]/50 bg-[var(--acid)]/8 text-[var(--text)]' : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]'}`}
-                    >
-                      <span>
-                        <span className="block font-semibold">{account.accountName}</span>
-                        <span className="mt-1 block text-[10px] text-[var(--text-dim)]">
-                          {publishingChannelLabel[account.platform]} · {account.handle}
-                          {account.active ? '' : ' · Inactive'}
-                        </span>
-                      </span>
-                      <input
-                        type="checkbox"
-                        className="size-4 accent-[var(--acid)]"
-                        checked={selected}
-                        disabled={!account.active}
-                        onChange={(event) => {
-                          const current = form.getValues('metadata.publishingAccountIds') ?? [];
-                          form.setValue(
-                            'metadata.publishingAccountIds',
-                            event.target.checked
-                              ? [...current, account.id]
-                              : current.filter((id) => id !== account.id),
-                            { shouldValidate: true },
-                          );
-                        }}
-                      />
-                    </label>
-                  );
-                })}
-              </div>
+              {selectedPlatforms.length ? (
+                visibleAccounts.length ? (
+                  <div id="promotion-publishing-accounts" className="grid gap-2 sm:grid-cols-2">
+                    {visibleAccounts.map((account: PublishingAccount) => {
+                      const selected = (form.watch('metadata.publishingAccountIds') ?? []).includes(
+                        account.id,
+                      );
+                      return (
+                        <label
+                          key={account.id}
+                          className={`flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 text-xs ${selected ? 'border-[var(--acid)]/50 bg-[var(--acid)]/8 text-[var(--text)]' : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]'}`}
+                        >
+                          <span>
+                            <span className="block font-semibold">{account.accountName}</span>
+                            <span className="mt-1 block text-[10px] text-[var(--text-dim)]">
+                              {publishingChannelLabel[account.platform]} · {account.handle}
+                              {account.active ? '' : ' · Inactive'}
+                            </span>
+                          </span>
+                          <input
+                            type="checkbox"
+                            className="size-4 accent-[var(--acid)]"
+                            checked={selected}
+                            disabled={!account.active}
+                            onChange={(event) => {
+                              const current = form.getValues('metadata.publishingAccountIds') ?? [];
+                              form.setValue(
+                                'metadata.publishingAccountIds',
+                                event.target.checked
+                                  ? [...current, account.id]
+                                  : current.filter((id) => id !== account.id),
+                                { shouldValidate: true },
+                              );
+                            }}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p
+                    id="promotion-publishing-accounts"
+                    className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-muted)]"
+                  >
+                    No active accounts are configured for the selected channels.
+                  </p>
+                )
+              ) : (
+                <p
+                  id="promotion-publishing-accounts"
+                  className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-muted)]"
+                >
+                  Select a channel to choose its accounts.
+                </p>
+              )}
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field

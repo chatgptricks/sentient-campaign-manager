@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ApprovalSubmission, ResourceLink } from '../../domain/models';
-import { ResourceAccessControl } from './PromotionDetailPage';
+import type { ApprovalSubmission, PromotionDetail, ResourceLink } from '../../domain/models';
+import { CreativeSection, ResourceAccessControl } from './PromotionDetailPage';
 import { getApprovedPublicationResources } from './presentation-helpers';
 
 const baseResource: ResourceLink = {
@@ -90,5 +90,49 @@ describe('publication resource eligibility', () => {
     });
 
     expect(eligible).toEqual([baseResource]);
+  });
+});
+
+describe('creative production actions', () => {
+  it('shows a primary creative link action when the creator can attach resources', () => {
+    const onAdd = vi.fn();
+    const detail: PromotionDetail = {
+      promotion: {
+        id: '20000000-0000-4000-8000-000000000001',
+        clientId: '10000000-0000-4000-8000-000000000001',
+        clientName: 'Client',
+        title: 'Promotion',
+        description: null,
+        status: 'CREATIVE_IN_PROGRESS',
+        salesOwnerId: '30000000-0000-4000-8000-000000000001',
+        salesOwnerName: 'Sales',
+        creatorId: '30000000-0000-4000-8000-000000000002',
+        creatorName: 'Creator',
+        approverId: null,
+        approverName: null,
+        publisherId: null,
+        publisherName: null,
+        dueDate: null,
+        version: 3,
+        createdAt: '2026-07-18T12:00:00.000Z',
+        updatedAt: '2026-07-18T12:00:00.000Z',
+        cancellationReason: null,
+        allowedActions: ['ATTACH_RESOURCE'],
+      },
+      metadata: null,
+      resources: [],
+      submissions: [],
+      publications: [],
+      invoice: null,
+      activity: [],
+    };
+
+    render(<CreativeSection detail={detail} onAdd={onAdd} onStart={vi.fn()} onSubmit={vi.fn()} />);
+
+    const attachButtons = screen.getAllByRole('button', { name: /attach creative link/i });
+    expect(attachButtons).toHaveLength(2);
+    fireEvent.click(attachButtons[0]!);
+    expect(onAdd).toHaveBeenCalledOnce();
+    expect(screen.getByText(/Attach the finished creative link/i)).toBeVisible();
   });
 });

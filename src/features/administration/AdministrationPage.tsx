@@ -34,6 +34,7 @@ import { formatDateTime } from '../../lib/utils';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
+import { ConfirmDialog, type ConfirmDialogState } from '../../components/ui/ConfirmDialog';
 import { ContextMenu, type ContextMenuState } from '../../components/ui/ContextMenu';
 import { Dialog } from '../../components/ui/Dialog';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -309,6 +310,7 @@ export function AdministrationPage() {
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [userMenu, setUserMenu] = useState<(ContextMenuState & { user: Profile }) | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const users = useQuery({
     queryKey: ['profiles', profile?.id],
     queryFn: () => campaignService.listProfiles(),
@@ -381,6 +383,50 @@ export function AdministrationPage() {
     event.stopPropagation();
     setUserMenu({ x: event.clientX, y: event.clientY, user });
   };
+  const requestProcessOutbox = () =>
+    setConfirmDialog({
+      title: 'Process pending outbox batch?',
+      description:
+        'The server-side worker will process a bounded batch and external adapters may be invoked.',
+      confirmLabel: 'Process batch',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        processOutbox.mutate();
+      },
+    });
+  const requestRetryOutbox = (job: { id: string; eventType: string }) =>
+    setConfirmDialog({
+      title: `Retry ${job.eventType}?`,
+      description: 'This resets its attempt counter and returns it to the pending queue.',
+      confirmLabel: 'Retry job',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        retryOutbox.mutate(job.id);
+      },
+    });
+  const requestSuspendUser = (user: Profile) =>
+    setConfirmDialog({
+      title: `Suspend ${user.displayName}?`,
+      description: 'They will lose access immediately. Historical records will be preserved.',
+      confirmLabel: 'Suspend user',
+      intent: 'danger',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        setUserStatus.mutate({ user, status: 'SUSPENDED' });
+      },
+    });
+  const requestDeleteUser = (user: Profile) =>
+    setConfirmDialog({
+      title: `Delete ${user.displayName}?`,
+      description:
+        'The Auth user will be deleted when possible; otherwise access will be suspended and history preserved.',
+      confirmLabel: 'Delete user',
+      intent: 'danger',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        deleteUser.mutate(user);
+      },
+    });
 
   if (users.isLoading || health.isLoading) return <LoadingState label="Loading administration" />;
   if (users.error || health.error)
@@ -595,14 +641,7 @@ export function AdministrationPage() {
                 <Button
                   variant="secondary"
                   disabled={processOutbox.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        'Process the next bounded outbox batch now? External adapters may be invoked.',
-                      )
-                    )
-                      processOutbox.mutate();
-                  }}
+                  onClick={requestProcessOutbox}
                 >
                   <Play className="size-3.5" />
                   {processOutbox.isPending ? 'Processing…' : 'Process pending batch'}
@@ -661,14 +700,7 @@ export function AdministrationPage() {
                             variant="ghost"
                             size="sm"
                             disabled={retryOutbox.isPending}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Retry ${job.eventType}? This resets its attempt counter and returns it to the pending queue.`,
-                                )
-                              )
-                                retryOutbox.mutate(job.id);
-                            }}
+                            onClick={() => requestRetryOutbox(job)}
                           >
                             <RefreshCw className="size-3.5" />
                             Retry
@@ -751,14 +783,7 @@ export function AdministrationPage() {
                         userMenu.user.status === 'SUSPENDED' ||
                         userMenu.user.id === profile?.id ||
                         setUserStatus.isPending,
-                      onSelect: () => {
-                        if (
-                          window.confirm(
-                            `Suspend ${userMenu.user.displayName}? They will lose access immediately.`,
-                          )
-                        )
-                          setUserStatus.mutate({ user: userMenu.user, status: 'SUSPENDED' });
-                      },
+                      onSelect: () => requestSuspendUser(userMenu.user),
                     },
                     {
                       label: 'Delete user',
@@ -767,20 +792,23 @@ export function AdministrationPage() {
                       icon: <Trash2 className="size-4" />,
                       danger: true,
                       disabled: userMenu.user.id === profile?.id || deleteUser.isPending,
-                      onSelect: () => {
-                        if (
-                          window.confirm(
-                            `Delete ${userMenu.user.displayName} from active users? Historical records will be preserved.`,
-                          )
-                        )
-                          deleteUser.mutate(userMenu.user);
-                      },
+                      onSelect: () => requestDeleteUser(userMenu.user),
                     },
                   ],
                 },
               ]
             : []
         }
+      />
+      <ConfirmDialog
+        state={confirmDialog}
+        pending={
+          processOutbox.isPending ||
+          retryOutbox.isPending ||
+          setUserStatus.isPending ||
+          deleteUser.isPending
+        }
+        onOpenChange={(open) => !open && setConfirmDialog(null)}
       />
     </div>
   );

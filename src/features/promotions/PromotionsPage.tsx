@@ -11,6 +11,7 @@ import { campaignService } from '../../lib/data';
 import { useAuth } from '../auth/AuthProvider';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { ConfirmDialog, type ConfirmDialogState } from '../../components/ui/ConfirmDialog';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Input, Select } from '../../components/ui/Field';
 import { LoadingState } from '../../components/ui/LoadingState';
@@ -22,6 +23,7 @@ export function PromotionsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const deferredSearch = useDeferredValue(search);
   const canCreate = hasAnyRole(profile?.roles ?? [], ['SALES']);
   const query = useQuery({
@@ -109,14 +111,19 @@ export function PromotionsPage() {
         ) : (
           <PromotionTable
             promotions={query.data ?? []}
-            onDelete={(promotion) => {
-              if (
-                window.confirm(
-                  `Delete "${promotion.title}" from active promotions? The audit trail will be preserved.`,
-                )
-              )
-                deletePromotion.mutate(promotion);
-            }}
+            onDelete={(promotion) =>
+              setConfirmDialog({
+                title: `Delete ${promotion.title}?`,
+                description:
+                  'The promotion will be removed from active work. The audit trail will be preserved.',
+                confirmLabel: 'Delete promotion',
+                intent: 'danger',
+                onConfirm: () => {
+                  setConfirmDialog(null);
+                  deletePromotion.mutate(promotion);
+                },
+              })
+            }
             emptyAction={
               canCreate ? (
                 <Button asChild>
@@ -127,6 +134,11 @@ export function PromotionsPage() {
           />
         )}
       </Card>
+      <ConfirmDialog
+        state={confirmDialog}
+        pending={deletePromotion.isPending}
+        onOpenChange={(open) => !open && setConfirmDialog(null)}
+      />
     </div>
   );
 }
