@@ -172,7 +172,7 @@ select ok(
 );
 select is(
   (select count(*)::integer from unnest(enum_range(null::public.promotion_status))),
-  14,
+  15,
   'all promotion states are represented'
 );
 

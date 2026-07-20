@@ -16,7 +16,7 @@ insert into public.outbox_events (
 values (
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   'Promotion', extensions.gen_random_uuid(), 'OutboxTestEvent',
-  '{"test":true}'::jsonb, now()
+  '{"test":true}'::jsonb, now() - interval '1 day'
 );
 
 insert into outbox_test_ids (key, id) values (
@@ -132,7 +132,7 @@ select results_eq(
 reset role;
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '11111111-1111-4111-8111-111111111111';
+set local "request.jwt.claim.sub" = 'e1111111-1111-4111-8111-111111111111';
 select lives_ok(
   format(
     'select public.retry_outbox_event(%L::uuid)',

@@ -11,9 +11,70 @@ create temporary table test_ids (
 grant select, insert, update on test_ids to authenticated;
 grant select on test_ids to service_role;
 
+insert into auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  confirmation_token,
+  email_change,
+  email_change_token_new,
+  recovery_token
+)
+values
+  (
+    '00000000-0000-0000-0000-000000000000',
+    'c7777777-7777-4777-8777-777777777777',
+    'authenticated',
+    'authenticated',
+    'no-role-pgtap@example.test',
+    'test',
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"display_name":"No Role pgTAP"}'::jsonb,
+    now(), now(), '', '', '', ''
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    'c8888888-8888-4888-8888-888888888888',
+    'authenticated',
+    'authenticated',
+    'suspended-pgtap@example.test',
+    'test',
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"display_name":"Suspended pgTAP"}'::jsonb,
+    now(), now(), '', '', '', ''
+  )
+on conflict (id) do nothing;
+
+insert into public.profiles (id, email, display_name, status)
+values
+  (
+    'c7777777-7777-4777-8777-777777777777',
+    'no-role-pgtap@example.test',
+    'No Role pgTAP',
+    'ACTIVE'
+  ),
+  (
+    'c8888888-8888-4888-8888-888888888888',
+    'suspended-pgtap@example.test',
+    'Suspended pgTAP',
+    'SUSPENDED'
+  )
+on conflict (id) do update
+set status = excluded.status;
+
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
+set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 
 insert into test_ids (key, id)
 select 'client', (public.create_client(
@@ -26,7 +87,7 @@ select 'promotion', (public.create_promotion(jsonb_build_object(
   'title', 'pgTAP Promotion',
   'description', 'Full workflow test',
   'due_date', current_date + 14,
-  'sales_owner_id', '22222222-2222-4222-8222-222222222222'
+  'sales_owner_id', 'e4444444-4444-4444-8444-444444444444'
 )) ->> 'id')::uuid;
 
 select results_eq(
@@ -46,7 +107,7 @@ select is(
 );
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
+set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 select ok(
   'ASSIGN_CREATOR' = any(public.get_promotion_allowed_actions((select id from test_ids where key = 'promotion'))),
   'allowed actions are returned by the backend'
@@ -62,7 +123,7 @@ select throws_ok(
   'stale writes are rejected'
 );
 
-set local "request.jwt.claim.sub" = '77777777-7777-4777-8777-777777777777';
+set local "request.jwt.claim.sub" = 'c7777777-7777-4777-8777-777777777777';
 select is((select count(*)::integer from public.clients), 0, 'a user without roles cannot read clients');
 select is((select count(*)::integer from public.promotions), 0, 'a user without roles cannot read promotions');
 select throws_ok(
@@ -71,23 +132,31 @@ select throws_ok(
   'a user without roles cannot create clients'
 );
 
-set local "request.jwt.claim.sub" = '88888888-8888-4888-8888-888888888888';
+set local "request.jwt.claim.sub" = 'c8888888-8888-4888-8888-888888888888';
 select throws_ok(
   $$select public.create_client('{"name":"Suspended Client"}'::jsonb)$$,
   'P0001', 'USER_INACTIVE',
   'a suspended user cannot execute commands'
 );
 
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
-select is((select count(*)::integer from public.promotions), 0, 'an unassigned Creator cannot read the promotion');
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
+select is(
+  (
+    select count(*)::integer
+    from public.promotions
+    where id = (select id from test_ids where key = 'promotion')
+  ),
+  0,
+  'an unassigned Creator cannot read the promotion'
+);
 
-set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
+set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 select lives_ok(
   format(
     'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 1)',
     (select id from test_ids where key = 'promotion'),
     'CREATOR',
-    '33333333-3333-4333-8333-333333333333'
+    'e7777777-7777-4777-8777-777777777777'
   ),
   'Sales assigns the Creator'
 );
@@ -96,8 +165,16 @@ select results_eq(
   $$values ('CREATOR_ASSIGNED'::text, 2)$$,
   'Creator assignment advances state and version'
 );
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
-select is((select count(*)::integer from public.promotions), 1, 'the assigned Creator can read the promotion');
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
+select is(
+  (
+    select count(*)::integer
+    from public.promotions
+    where id = (select id from test_ids where key = 'promotion')
+  ),
+  1,
+  'the assigned Creator can read the promotion'
+);
 select lives_ok(
   format(
     'select public.start_creative_work(%L::uuid, 2)',
@@ -129,7 +206,7 @@ set validation_status = 'VALID', validation_message = 'Validated by deterministi
 where id = (select id from test_ids where key = 'resource-one');
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.submit_for_approval(%L::uuid, %L::uuid, 4)',
@@ -144,7 +221,7 @@ from public.approval_submissions
 where promotion_id = (select id from test_ids where key = 'promotion')
   and submission_number = 1;
 
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select throws_ok(
   format(
     'select public.decide_approval(%L::uuid, %L::public.approval_decision, null, 5)',
@@ -182,7 +259,7 @@ select throws_ok(
 
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.start_creative_work(%L::uuid, 6)',
@@ -208,7 +285,7 @@ set validation_status = 'VALID', validation_message = 'Validated by deterministi
 where id = (select id from test_ids where key = 'resource-two');
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.submit_for_approval(%L::uuid, %L::uuid, 8)',
@@ -228,7 +305,7 @@ select is(
   'both creative submissions remain in history'
 );
 
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 9)',
@@ -244,7 +321,7 @@ select results_eq(
   'derived submission state distinguishes superseded and approved versions'
 );
 
-set local "request.jwt.claim.sub" = '66666666-6666-4666-8666-666666666666';
+set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 select throws_ok(
   format(
     'select public.create_invoice(%L::uuid, %L::jsonb, 11)',
@@ -255,7 +332,7 @@ select throws_ok(
   'Sales cannot invoice before verification'
 );
 
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.start_publishing(%L::uuid, 10)',
@@ -315,7 +392,7 @@ select is(
 reset role;
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.complete_verified_workflow(%L::uuid, 15)',
@@ -324,7 +401,7 @@ select lives_ok(
   'verified workflow becomes ready for invoicing explicitly'
 );
 
-set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
+set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 select lives_ok(
   format(
     'select public.create_invoice(%L::uuid, %L::jsonb, 16)',
@@ -355,17 +432,17 @@ select is(
 
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '11111111-1111-4111-8111-111111111111';
+set local "request.jwt.claim.sub" = 'e1111111-1111-4111-8111-111111111111';
 select lives_ok(
   $$select public.get_operations_health()$$,
   'Administrator can read the sanitized operations summary'
 );
 select lives_ok(
-  $$select public.grant_user_role('33333333-3333-4333-8333-333333333333', 'CREATOR')$$,
+  $$select public.grant_user_role('e7777777-7777-4777-8777-777777777777', 'CREATOR')$$,
   'Admin can grant the Creator role idempotently'
 );
 
-set local "request.jwt.claim.sub" = '22222222-2222-4222-8222-222222222222';
+set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 select throws_ok(
   $$select public.get_operations_health()$$,
   'P0001', 'FORBIDDEN',
@@ -381,12 +458,12 @@ select lives_ok(
     'select public.assign_promotion_role(%L::uuid, %L::public.assignment_role, %L::uuid, 1)',
     (select id from test_ids where key = 'self-promotion'),
     'CREATOR',
-    '33333333-3333-4333-8333-333333333333'
+    'e7777777-7777-4777-8777-777777777777'
   ),
   'Creator is assigned to the self-approval scenario'
 );
 
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.start_creative_work(%L::uuid, 2)',
@@ -412,7 +489,7 @@ set validation_status = 'VALID', validation_message = 'Validated by deterministi
 where id = (select id from test_ids where key = 'self-resource');
 set local role authenticated;
 set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.submit_for_approval(%L::uuid, %L::uuid, 4)',
@@ -425,7 +502,7 @@ insert into test_ids (key, id)
 select 'self-submission', id
 from public.approval_submissions
 where promotion_id = (select id from test_ids where key = 'self-promotion');
-set local "request.jwt.claim.sub" = '33333333-3333-4333-8333-333333333333';
+set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
 select lives_ok(
   format(
     'select public.decide_approval(%L::uuid, %L::public.approval_decision, %L, 5)',

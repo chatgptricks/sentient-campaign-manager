@@ -100,7 +100,7 @@ export class SlackNotificationAdapter implements NotificationAdapter {
     let ts: string | undefined;
 
     // 1. Send activity log line to global tracking channel C0BJ627G19R
-    ts = await this.postSlackMessage(this.trackingChannelId, text);
+    ts = await this.postSlackMessage(this.trackingChannelId, text, message.idempotencyKey);
 
     // 2. If recipient is a direct Slack User ID (starts with U) and different from tracking channel, send DM
     if (
@@ -108,7 +108,7 @@ export class SlackNotificationAdapter implements NotificationAdapter {
       message.recipient.startsWith('U') &&
       message.recipient !== this.trackingChannelId
     ) {
-      const userDmTs = await this.postSlackMessage(message.recipient, text);
+      const userDmTs = await this.postSlackMessage(message.recipient, text, message.idempotencyKey);
       ts = ts || userDmTs;
     }
 
@@ -121,7 +121,11 @@ export class SlackNotificationAdapter implements NotificationAdapter {
     };
   }
 
-  private async postSlackMessage(channel: string, text: string): Promise<string | undefined> {
+  private async postSlackMessage(
+    channel: string,
+    text: string,
+    idempotencyKey: string,
+  ): Promise<string | undefined> {
     const response = await this.fetcher('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
@@ -130,6 +134,7 @@ export class SlackNotificationAdapter implements NotificationAdapter {
       },
       body: JSON.stringify({
         channel,
+        client_msg_id: await stableSlackClientMessageId(idempotencyKey, channel),
         text,
         unfurl_links: false,
         unfurl_media: false,
@@ -150,6 +155,17 @@ export class SlackNotificationAdapter implements NotificationAdapter {
     }
     return payload.ts;
   }
+}
+
+async function stableSlackClientMessageId(idempotencyKey: string, channel: string) {
+  const input = new TextEncoder().encode(`${idempotencyKey}:${channel}`);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', input));
+  digest[6] = ((digest[6] ?? 0) & 0x0f) | 0x50;
+  digest[8] = ((digest[8] ?? 0) & 0x3f) | 0x80;
+  const hex = Array.from(digest.slice(0, 16), (byte) => byte.toString(16).padStart(2, '0')).join(
+    '',
+  );
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
 export function notificationAdapterFor(
