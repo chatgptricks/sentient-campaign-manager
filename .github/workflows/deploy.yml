@@ -99,16 +99,28 @@ jobs:
         run: npx --no-install supabase db push --linked --include-all
 
       - name: Set Edge Function secrets
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
         run: |
+          secret_args=(
+            SUPABASE_URL="$SUPABASE_URL"
+            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
+            SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+            SUPABASE_ANON_KEY="$SUPABASE_PUBLISHABLE_KEY"
+            OUTBOX_PROCESSOR_SECRET="$OUTBOX_PROCESSOR_SECRET"
+            SITE_URL="$PUBLIC_APP_URL"
+            ADMIN_INVITE_REDIRECT_URL="$PUBLIC_APP_URL"
+          )
+          if [ -n "$SLACK_BOT_TOKEN" ]; then
+            secret_args+=(SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN")
+          fi
+          if [ -n "$SLACK_CHANNEL_ID" ]; then
+            secret_args+=(SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID")
+          fi
           npx --no-install supabase secrets set \
             --project-ref "$SUPABASE_PROJECT_ID" \
-            SUPABASE_URL="$SUPABASE_URL" \
-            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
-            SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
-            SUPABASE_ANON_KEY="$SUPABASE_PUBLISHABLE_KEY" \
-            OUTBOX_PROCESSOR_SECRET="$OUTBOX_PROCESSOR_SECRET" \
-            SITE_URL="$PUBLIC_APP_URL" \
-            ADMIN_INVITE_REDIRECT_URL="$PUBLIC_APP_URL"
+            "${secret_args[@]}"
 
       - name: Provision database Vault secrets
         shell: bash
