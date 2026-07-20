@@ -213,11 +213,8 @@ on conflict (provider, provider_id) do nothing;
 insert into public.roles (code, name)
 values
   ('ADMINISTRATOR', 'Administrator'),
-  ('FINANCE', 'Finance'),
   ('SALES', 'Sales'),
-  ('APPROVER', 'Approver'),
-  ('CREATOR', 'Creator'),
-  ('PUBLISHER', 'Publisher')
+  ('CREATOR', 'Creator')
 on conflict (code) do update set name = excluded.name;
 
 insert into public.user_roles (user_id, role_id, granted_by)

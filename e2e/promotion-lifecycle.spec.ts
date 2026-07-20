@@ -22,14 +22,14 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await expect(page.getByRole('heading', { name: 'E2E verified launch' })).toBeVisible();
   await expect(page.getByText('Draft', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Assign creator' }).click();
+  await page.getByRole('button', { name: 'Assign creator' }).first().click();
   await page
     .getByRole('combobox', { name: 'Creator', exact: true })
-    .selectOption({ label: 'Leo Martins · leo@sentient.agency' });
+    .selectOption({ label: 'Leo Martins' });
   await page.getByRole('button', { name: 'Assign', exact: true }).click();
   await expect(page.getByText('Creator assigned', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Start creative' }).click();
+  await page.getByRole('button', { name: 'Start creative' }).first().click();
   await expect(page.getByText('Creative in progress', { exact: true })).toBeVisible();
 
   await page.getByRole('tab', { name: /Resources/ }).click();
@@ -37,19 +37,19 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await page.getByLabel('Display name').fill('E2E creative v1');
   await page.getByLabel('HTTPS link').fill('https://www.canva.com/design/e2e-v1');
   await page.getByRole('button', { name: 'Attach resource' }).last().click();
-  await expect(page.getByText('E2E creative v1')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'E2E creative v1' })).toBeVisible();
   await page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
   await expect(page.getByText('Awaiting approval', { exact: true })).toBeVisible();
 
   await page.getByRole('tab', { name: /Approval/ }).click();
-  await page.getByRole('button', { name: 'Request revision' }).click();
+  await page.getByRole('button', { name: 'Request revision' }).first().click();
   await page
     .getByLabel('Revision notes')
     .fill('Increase contrast and move the product mark into the opening frame.');
   await page.getByRole('button', { name: 'Request revision' }).last().click();
   await expect(page.getByText('Revision requested', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Start creative' }).click();
+  await page.getByRole('button', { name: 'Start creative' }).first().click();
   await page.getByRole('tab', { name: /Resources/ }).click();
   await page.getByRole('button', { name: 'Attach resource' }).first().click();
   await page.getByLabel('Display name').fill('E2E creative v2');
@@ -57,27 +57,15 @@ test('completes the internal promotion lifecycle with a revision cycle', async (
   await page.getByRole('button', { name: 'Attach resource' }).last().click();
   await page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
   await page.getByRole('tab', { name: /Approval/ }).click();
-  await page.getByRole('button', { name: 'Approve' }).click();
+  await page.getByRole('button', { name: 'Approve' }).first().click();
   await page.getByRole('button', { name: 'Approve submission' }).click();
   await expect(page.getByText('Approved', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Start publishing' }).click();
-  await page.getByRole('button', { name: 'Record publication' }).click();
+  await page.getByRole('button', { name: 'Record publication' }).first().click();
   await page.getByLabel('Destination').fill('@e2e_client');
   await page.getByLabel('Publication URL').fill('https://www.instagram.com/p/e2e-verified');
   await page.getByRole('button', { name: 'Record publication' }).last().click();
-  await expect(page.getByText('Published', { exact: true })).toBeVisible();
-
-  await page.getByRole('tab', { name: /Publishing/ }).click();
-  await page.getByRole('button', { name: 'Request verification' }).click();
-  await expect(page.getByText('Verification pending', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Verify publication' }).click();
-  await page
-    .getByLabel('Evidence notes')
-    .fill('Live URL, destination, and approved artifact verified.');
-  await page.getByRole('button', { name: 'Record verification' }).click();
-  await expect(page.getByText('Verified', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Complete verification' }).click();
   await expect(page.getByText('Ready for invoicing', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Register invoice' }).first().click();

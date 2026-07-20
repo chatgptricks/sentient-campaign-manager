@@ -122,7 +122,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await expect(sales.page.getByRole('heading', { name: title })).toBeVisible();
   const promotionHash = new URL(sales.page.url()).hash;
 
-  await sales.page.getByRole('button', { name: 'Assign creator' }).click();
+  await sales.page.getByRole('button', { name: 'Assign creator' }).first().click();
   await selectAssignee(sales.page, 'Creator', accounts.creator);
   await sales.page.getByRole('button', { name: 'Assign', exact: true }).click();
   await expect(sales.page.getByText('Creator assigned', { exact: true })).toBeVisible();
@@ -130,7 +130,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   const creator = await authenticatedPage(browser, baseURL, accounts.creator);
   sessions.push(creator.context);
   await openPromotion(creator.page, promotionHash, title);
-  await creator.page.getByRole('button', { name: 'Start creative' }).click();
+  await creator.page.getByRole('button', { name: 'Start creative' }).first().click();
   await expect(creator.page.getByText('Creative in progress', { exact: true })).toBeVisible();
   await creator.page.getByRole('tab', { name: /Resources/ }).click();
   await creator.page.getByRole('button', { name: 'Attach resource' }).first().click();
@@ -138,7 +138,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await creator.page.getByLabel('Display name').fill('E2E creative v1');
   await creator.page.getByLabel('HTTPS link').fill('https://example.com/e2e-real-v1');
   await creator.page.getByRole('button', { name: 'Attach resource' }).last().click();
-  await expect(creator.page.getByText('E2E creative v1')).toBeVisible();
+  await expect(creator.page.getByRole('heading', { name: 'E2E creative v1' })).toBeVisible();
   await waitForResourceValidation(
     admin.page,
     creator.page,
@@ -150,7 +150,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await expect(creator.page.getByText('Awaiting approval', { exact: true })).toBeVisible();
 
   await creator.page.getByRole('tab', { name: /Approval/ }).click();
-  await creator.page.getByRole('button', { name: 'Request revision' }).click();
+  await creator.page.getByRole('button', { name: 'Request revision' }).first().click();
   await creator.page
     .getByLabel('Revision notes')
     .fill('Increase contrast and move the product mark into the opening frame.');
@@ -158,7 +158,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await expect(creator.page.getByText('Revision requested', { exact: true })).toBeVisible();
 
   await openPromotion(creator.page, promotionHash, title);
-  await creator.page.getByRole('button', { name: 'Start creative' }).click();
+  await creator.page.getByRole('button', { name: 'Start creative' }).first().click();
   await creator.page.getByRole('tab', { name: /Resources/ }).click();
   await creator.page.getByRole('button', { name: 'Attach resource' }).first().click();
   await creator.page.getByLabel('Provider').selectOption('OTHER');
@@ -175,35 +175,20 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await creator.page.getByRole('button', { name: 'Mark ready for approval' }).first().click();
 
   await creator.page.getByRole('tab', { name: /Approval/ }).click();
-  await creator.page.getByRole('button', { name: 'Approve' }).click();
+  await creator.page.getByRole('button', { name: 'Approve' }).first().click();
   await creator.page.getByRole('button', { name: 'Approve submission' }).click();
   await expect(creator.page.getByText('Approved', { exact: true })).toBeVisible();
 
   await creator.page.getByRole('button', { name: 'Start publishing' }).click();
-  await creator.page.getByRole('button', { name: 'Record publication' }).click();
+  await creator.page.getByRole('button', { name: 'Record publication' }).first().click();
   await creator.page.getByLabel('Destination').fill('@e2e_client');
   await creator.page
     .getByLabel('Publication URL')
     .fill(`https://www.instagram.com/p/e2e-${suffix}`);
   await creator.page.getByRole('button', { name: 'Record publication' }).last().click();
-  await expect(creator.page.getByText('Published', { exact: true })).toBeVisible();
-
-  await creator.page.getByRole('tab', { name: /Publishing/ }).click();
-  await creator.page.getByRole('button', { name: 'Request verification' }).click();
-  await expect(creator.page.getByText('Verification pending', { exact: true })).toBeVisible();
 
   await openPromotion(sales.page, promotionHash, title);
-  await sales.page.getByRole('tab', { name: /Publishing/ }).click();
-  await sales.page.getByRole('button', { name: 'Verify publication' }).click();
-  await sales.page
-    .getByLabel('Evidence notes')
-    .fill('Live URL, destination, and approved artifact verified.');
-  await sales.page.getByRole('button', { name: 'Record verification' }).click();
-  await expect(sales.page.getByText('Verified', { exact: true })).toBeVisible();
-  await sales.page.getByRole('button', { name: 'Complete verification' }).click();
   await expect(sales.page.getByText('Ready for invoicing', { exact: true })).toBeVisible();
-
-  await openPromotion(sales.page, promotionHash, title);
   await sales.page.getByRole('button', { name: 'Register invoice' }).first().click();
   await sales.page.getByLabel('Amount').fill('4200');
   await sales.page.getByLabel('Invoice number').fill(`E2E-${suffix}`);

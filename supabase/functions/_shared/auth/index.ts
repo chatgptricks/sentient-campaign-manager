@@ -13,10 +13,7 @@ export type AuthContext = {
 const roleRank: Record<string, number> = {
   ADMINISTRATOR: 60,
   SALES: 40,
-  FINANCE: 40,
-  APPROVER: 20,
   CREATOR: 20,
-  PUBLISHER: 20,
 };
 
 function bearerToken(request: Request): string | undefined {

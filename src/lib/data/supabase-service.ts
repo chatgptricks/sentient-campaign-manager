@@ -16,7 +16,7 @@ import type {
   ResourceLink,
 } from '../../domain/models';
 import { promotionStatuses, type PromotionStatus } from '../../domain/promotion-status';
-import { hasRole, type RoleCode } from '../../domain/permissions';
+import { hasRole, roleCodes, type RoleCode } from '../../domain/permissions';
 import { DomainError } from '../../domain/errors';
 import { supabase } from '../supabase/client';
 import type {
@@ -73,6 +73,10 @@ function actionList(value: unknown): PromotionAction[] {
   return value.filter((item): item is PromotionAction => typeof item === 'string');
 }
 
+function isRoleCode(value: string): value is RoleCode {
+  return roleCodes.includes(value as RoleCode);
+}
+
 function mapPromotion(raw: unknown): Promotion {
   const row = asRow(raw);
   const status = isPromotionStatus(row.status) ? row.status : 'DRAFT';
@@ -87,10 +91,6 @@ function mapPromotion(raw: unknown): Promotion {
     salesOwnerName: relationName(row.sales_owner),
     creatorId: nullableText(row.creator_id),
     creatorName: row.creator_id ? relationName(row.creator) : null,
-    approverId: nullableText(row.approver_id),
-    approverName: row.approver_id ? relationName(row.approver) : null,
-    publisherId: nullableText(row.publisher_id),
-    publisherName: row.publisher_id ? relationName(row.publisher) : null,
     dueDate: nullableText(row.due_date),
     version: numberValue(row.version, 1),
     createdAt: textValue(row.created_at),
@@ -225,6 +225,7 @@ function mapPublication(raw: unknown): Publication {
   return {
     id: textValue(row.id),
     promotionId: textValue(row.promotion_id),
+    publishingAccountId: nullableText(row.publishing_account_id),
     provider: textValue(row.provider),
     destination: textValue(row.destination),
     publicationUrl: textValue(row.publication_url),
@@ -338,9 +339,7 @@ const promotionSelect = `
   *,
   client:clients!promotions_client_id_fkey(name),
   sales_owner:profiles!promotions_sales_owner_id_fkey(display_name),
-  creator:profiles!promotions_creator_id_fkey(display_name),
-  approver:profiles!promotions_approver_id_fkey(display_name),
-  publisher:profiles!promotions_publisher_id_fkey(display_name)
+  creator:profiles!promotions_creator_id_fkey(display_name)
 `;
 
 export const supabaseCampaignService: CampaignService = {
@@ -384,7 +383,7 @@ export const supabaseCampaignService: CampaignService = {
     const attentionStates: PromotionStatus[] = [
       'SUBMITTED_FOR_APPROVAL',
       'REVISION_REQUESTED',
-      'VERIFICATION_PENDING',
+      'PUBLISHING_IN_PROGRESS',
       'READY_FOR_INVOICING',
     ];
     return {
@@ -401,9 +400,7 @@ export const supabaseCampaignService: CampaignService = {
         .slice(0, 6),
       recentActivity: (activity.data ?? []).map(mapActivity),
       myAssignments: promotions
-        .filter((item) =>
-          [item.salesOwnerId, item.creatorId, item.approverId, item.publisherId].includes(userId),
-        )
+        .filter((item) => [item.salesOwnerId, item.creatorId].includes(userId))
         .slice(0, 6),
     };
   },
@@ -610,8 +607,8 @@ export const supabaseCampaignService: CampaignService = {
         displayName: textValue(row.display_name),
         status: textValue(row.status, 'ACTIVE') as Profile['status'],
         roles: userRoles
-          .map((entry) => textValue(relation(asRow(entry).role).code) as RoleCode)
-          .filter(Boolean),
+          .map((entry) => textValue(relation(asRow(entry).role).code))
+          .filter(isRoleCode),
         slackUserId: nullableText(row.slack_user_id),
       };
     });
@@ -881,6 +878,7 @@ export const supabaseCampaignService: CampaignService = {
       input: {
         provider: input.provider,
         destination: input.destination,
+        publishing_account_id: input.publishingAccountId || null,
         publication_url: input.publicationUrl,
         external_publication_id: input.externalPublicationId || null,
         artifact_resource_link_id: input.artifactResourceLinkId,

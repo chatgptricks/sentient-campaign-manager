@@ -91,6 +91,7 @@ export const approvalDecisionSchema = z
   });
 
 export const publicationSchema = z.object({
+  publishingAccountId: z.union([z.literal(''), z.uuid()]).optional(),
   provider: z.enum(publishingChannels),
   destination: z.string().trim().min(2, 'Destination is required.').max(120),
   publicationUrl: z

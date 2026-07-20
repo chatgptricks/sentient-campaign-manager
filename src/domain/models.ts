@@ -33,10 +33,6 @@ export interface Promotion {
   salesOwnerName: string;
   creatorId: string | null;
   creatorName: string | null;
-  approverId: string | null;
-  approverName: string | null;
-  publisherId: string | null;
-  publisherName: string | null;
   dueDate: string | null;
   version: number;
   createdAt: string;
@@ -69,14 +65,9 @@ export type PromotionAction =
   | 'START_CREATIVE_WORK'
   | 'ATTACH_RESOURCE'
   | 'SUBMIT_FOR_APPROVAL'
-  | 'ASSIGN_APPROVER'
   | 'DECIDE_APPROVAL'
-  | 'ASSIGN_PUBLISHER'
   | 'START_PUBLISHING'
   | 'RECORD_PUBLICATION'
-  | 'REQUEST_PUBLICATION_VERIFICATION'
-  | 'RECORD_PUBLICATION_VERIFICATION'
-  | 'COMPLETE_VERIFIED_WORKFLOW'
   | 'CREATE_INVOICE'
   | 'MARK_COMPLETED';
 
@@ -127,6 +118,7 @@ export interface PublicationVerification {
 export interface Publication {
   id: string;
   promotionId: string;
+  publishingAccountId: string | null;
   provider: string;
   destination: string;
   publicationUrl: string;

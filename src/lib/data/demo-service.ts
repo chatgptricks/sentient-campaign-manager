@@ -34,8 +34,6 @@ const ids = {
   admin: '00000000-0000-4000-8000-000000000001',
   sales: '00000000-0000-4000-8000-000000000002',
   creator: '00000000-0000-4000-8000-000000000003',
-  approver: '00000000-0000-4000-8000-000000000004',
-  publisher: '00000000-0000-4000-8000-000000000005',
   finance: '00000000-0000-4000-8000-000000000006',
   client1: '10000000-0000-4000-8000-000000000001',
   client2: '10000000-0000-4000-8000-000000000002',
@@ -76,14 +74,14 @@ const profiles: Profile[] = [
     roles: ['CREATOR'],
   },
   {
-    id: ids.approver,
+    id: '00000000-0000-4000-8000-000000000004',
     email: 'amina@sentient.agency',
     displayName: 'Amina Okafor',
     status: 'ACTIVE',
     roles: ['CREATOR'],
   },
   {
-    id: ids.publisher,
+    id: '00000000-0000-4000-8000-000000000005',
     email: 'noah@sentient.agency',
     displayName: 'Noah Williams',
     status: 'ACTIVE',
@@ -288,11 +286,7 @@ function allowedActions(status: PromotionStatus): PromotionAction[] {
     REVISION_REQUESTED: ['START_CREATIVE_WORK', 'ATTACH_RESOURCE', 'CANCEL_PROMOTION'],
     SUBMITTED_FOR_APPROVAL: ['DECIDE_APPROVAL', 'CANCEL_PROMOTION'],
     APPROVED: ['START_PUBLISHING', 'CANCEL_PROMOTION'],
-    PUBLISHER_ASSIGNED: ['START_PUBLISHING', 'CANCEL_PROMOTION'],
     PUBLISHING_IN_PROGRESS: ['RECORD_PUBLICATION', 'CANCEL_PROMOTION'],
-    PUBLISHED: ['REQUEST_PUBLICATION_VERIFICATION', 'CANCEL_PROMOTION'],
-    VERIFICATION_PENDING: ['RECORD_PUBLICATION_VERIFICATION', 'CANCEL_PROMOTION'],
-    VERIFIED: ['COMPLETE_VERIFIED_WORKFLOW', 'CANCEL_PROMOTION'],
     READY_FOR_INVOICING: ['CREATE_INVOICE', 'CANCEL_PROMOTION'],
     INVOICED: ['MARK_COMPLETED'],
     COMPLETED: [],
@@ -321,32 +315,6 @@ function promotion(
     salesOwnerName: 'Maya Chen',
     creatorId: ids.creator,
     creatorName: 'Leo Martins',
-    approverId: ids.approver,
-    approverName: 'Amina Okafor',
-    publisherId: [
-      'APPROVED',
-      'PUBLISHER_ASSIGNED',
-      'PUBLISHING_IN_PROGRESS',
-      'PUBLISHED',
-      'VERIFICATION_PENDING',
-      'VERIFIED',
-      'READY_FOR_INVOICING',
-      'INVOICED',
-    ].includes(status)
-      ? ids.publisher
-      : null,
-    publisherName: [
-      'APPROVED',
-      'PUBLISHER_ASSIGNED',
-      'PUBLISHING_IN_PROGRESS',
-      'PUBLISHED',
-      'VERIFICATION_PENDING',
-      'VERIFIED',
-      'READY_FOR_INVOICING',
-      'INVOICED',
-    ].includes(status)
-      ? 'Noah Williams'
-      : null,
     dueDate,
     version: 4,
     createdAt: iso(-20),
@@ -394,7 +362,7 @@ let promotions: Promotion[] = [
     ids.promo5,
     ids.client1,
     'Weekend escape series',
-    'VERIFICATION_PENDING',
+    'PUBLISHING_IN_PROGRESS',
     iso(-1).slice(0, 10),
     { version: 10, updatedAt: iso(0, -5) },
   ),
@@ -689,6 +657,7 @@ function detailFor(item: Promotion): PromotionDetail {
               {
                 id: publicationId,
                 promotionId: item.id,
+                publishingAccountId: 'account-instagram-sentient',
                 provider: 'INSTAGRAM',
                 destination: '@client_official',
                 publicationUrl: 'https://www.instagram.com/p/demo-sentient',
@@ -738,7 +707,7 @@ export const demoCampaignService: CampaignService = {
         [
           'SUBMITTED_FOR_APPROVAL',
           'REVISION_REQUESTED',
-          'VERIFICATION_PENDING',
+          'PUBLISHING_IN_PROGRESS',
           'READY_FOR_INVOICING',
         ].includes(item.status),
       ),
@@ -750,7 +719,7 @@ export const demoCampaignService: CampaignService = {
       ),
       recentActivity: activity.slice(0, 8),
       myAssignments: promotions.filter((item) =>
-        [item.salesOwnerId, item.creatorId, item.approverId, item.publisherId].includes(userId),
+        [item.salesOwnerId, item.creatorId].includes(userId),
       ),
     };
   },
@@ -957,10 +926,6 @@ export const demoCampaignService: CampaignService = {
           profiles.find((profile) => profile.id === ids.sales)?.displayName ?? 'Promotion owner',
         creatorId: null,
         creatorName: null,
-        approverId: null,
-        approverName: null,
-        publisherId: null,
-        publisherName: null,
         version: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -999,14 +964,6 @@ export const demoCampaignService: CampaignService = {
       item.creatorId = userId;
       item.creatorName = assignee.displayName;
       transition(item, 'CREATOR_ASSIGNED', 'CreatorAssigned');
-    } else if (role === 'APPROVER' || role === 'PUBLISHER') {
-      item.creatorId = userId;
-      item.creatorName = assignee.displayName;
-      transition(
-        item,
-        item.status === 'DRAFT' ? 'CREATOR_ASSIGNED' : item.status,
-        'CreatorAssigned',
-      );
     } else {
       item.salesOwnerId = userId;
       item.salesOwnerName = assignee.displayName;
@@ -1085,7 +1042,7 @@ export const demoCampaignService: CampaignService = {
   async recordPublication(id, _input: PublicationInput, version) {
     const item = findPromotion(id);
     assertVersion(item, version);
-    transition(item, 'PUBLISHED', 'PublicationRecorded', item.creatorName ?? 'Creator');
+    transition(item, 'READY_FOR_INVOICING', 'PublicationRecorded', item.creatorName ?? 'Creator');
   },
 
   async requestVerification(publicationId, version) {

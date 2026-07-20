@@ -329,7 +329,7 @@ select throws_ok(
     '{"amount":100,"currency":"USD","invoice_number":"PREMATURE"}'
   ),
   'P0001', 'FORBIDDEN',
-  'Sales cannot invoice before verification'
+  'Sales cannot invoice before posting is complete'
 );
 
 set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
@@ -354,57 +354,16 @@ select 'publication', (
     11
   ) #>> '{publication,id}'
 )::uuid;
-select lives_ok(
-  format(
-    'select public.request_publication_verification(%L::uuid, 12)',
-    (select id from test_ids where key = 'publication')
-  ),
-  'Creator requests verification'
-);
-select lives_ok(
-  format(
-    'select public.record_publication_verification(%L::uuid, %L::jsonb, 13)',
-    (select id from test_ids where key = 'publication'),
-    '{"status":"FAILED","verification_method":"MANUAL","details_json":{"reason":"post still processing"}}'
-  ),
-  'a failed verification is recorded without ending the workflow'
-);
 select results_eq(
   $$select status::text, version from public.promotions where id = (select id from test_ids where key = 'promotion')$$,
-  $$values ('VERIFICATION_PENDING'::text, 14)$$,
-  'failed verification remains retryable'
-);
-reset role;
-set local role service_role;
-select lives_ok(
-  format(
-    'select public.record_automated_publication_verification(%L::uuid, %L::jsonb, 14)',
-    (select id from test_ids where key = 'publication'),
-    '{"status":"VERIFIED","verification_method":"AUTOMATED_CHECK","details_json":{"checked":true}}'
-  ),
-  'a later service-role verification succeeds without overwriting the failure'
-);
-select is(
-  (select count(*)::integer from public.publication_verifications where publication_id = (select id from test_ids where key = 'publication')),
-  2,
-  'all verification attempts remain immutable evidence'
-);
-reset role;
-set local role authenticated;
-set local "request.jwt.claim.role" = 'authenticated';
-set local "request.jwt.claim.sub" = 'e7777777-7777-4777-8777-777777777777';
-select lives_ok(
-  format(
-    'select public.complete_verified_workflow(%L::uuid, 15)',
-    (select id from test_ids where key = 'promotion')
-  ),
-  'verified workflow becomes ready for invoicing explicitly'
+  $$values ('READY_FOR_INVOICING'::text, 12)$$,
+  'recording publication completes posting and unlocks invoicing'
 );
 
 set local "request.jwt.claim.sub" = 'e4444444-4444-4444-8444-444444444444';
 select lives_ok(
   format(
-    'select public.create_invoice(%L::uuid, %L::jsonb, 16)',
+    'select public.create_invoice(%L::uuid, %L::jsonb, 12)',
     (select id from test_ids where key = 'promotion'),
     '{"amount":1250.00,"currency":"USD","invoice_number":"INV-PGTAP-001","status":"ISSUED"}'
   ),
@@ -412,7 +371,7 @@ select lives_ok(
 );
 select results_eq(
   $$select status::text, version from public.promotions where id = (select id from test_ids where key = 'promotion')$$,
-  $$values ('INVOICED'::text, 17)$$,
+  $$values ('INVOICED'::text, 13)$$,
   'the full workflow ends in INVOICED'
 );
 reset role;

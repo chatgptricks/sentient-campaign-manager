@@ -100,10 +100,8 @@ describe('shared edge-function controls', () => {
 
   it('authorizes edge functions with hierarchical roles', () => {
     const context = { roles: new Set(['SALES']) } as AuthContext;
-    expect(hasRole(context, 'APPROVER')).toBe(true);
-    expect(hasRole(context, 'FINANCE')).toBe(true);
-    expect(() => requireAnyRole(context, ['PUBLISHER'])).not.toThrow();
-    expect(() => requireAnyRole(context, ['FINANCE'])).not.toThrow();
+    expect(hasRole(context, 'CREATOR')).toBe(true);
+    expect(() => requireAnyRole(context, ['CREATOR'])).not.toThrow();
   });
 
   it('rejects legacy admin role assignment inputs', () => {

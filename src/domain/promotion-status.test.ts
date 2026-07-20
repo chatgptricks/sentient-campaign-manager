@@ -7,7 +7,8 @@ describe('promotion state machine presentation mirror', () => {
     expect(isValidTransition('DRAFT', 'CREATOR_ASSIGNED')).toBe(true);
     expect(isValidTransition('CREATIVE_IN_PROGRESS', 'SUBMITTED_FOR_APPROVAL')).toBe(true);
     expect(isValidTransition('SUBMITTED_FOR_APPROVAL', 'APPROVED')).toBe(true);
-    expect(isValidTransition('VERIFICATION_PENDING', 'VERIFIED')).toBe(true);
+    expect(isValidTransition('APPROVED', 'PUBLISHING_IN_PROGRESS')).toBe(true);
+    expect(isValidTransition('PUBLISHING_IN_PROGRESS', 'READY_FOR_INVOICING')).toBe(true);
     expect(isValidTransition('READY_FOR_INVOICING', 'INVOICED')).toBe(true);
   });
 

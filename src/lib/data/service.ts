@@ -23,7 +23,7 @@ import type {
   VerificationInput,
 } from '../validation/schemas';
 
-export type AssignmentRole = 'SALES_OWNER' | 'CREATOR' | 'APPROVER' | 'PUBLISHER';
+export type AssignmentRole = 'SALES_OWNER' | 'CREATOR';
 
 export interface ListPromotionsInput {
   search?: string;

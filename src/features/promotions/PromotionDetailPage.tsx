@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Tabs from '@radix-ui/react-tabs';
@@ -23,7 +23,6 @@ import {
   ReceiptText,
   Send,
   PartyPopper,
-  ShieldCheck,
   UserRound,
   X,
 } from 'lucide-react';
@@ -35,7 +34,6 @@ import type {
   PublicationInput,
   PromotionEditInput,
   ResourceLinkInput,
-  VerificationInput,
 } from '../../lib/validation/schemas';
 import type { AssignmentRole } from '../../lib/data/service';
 import type {
@@ -43,7 +41,6 @@ import type {
   PromotionAction,
   PromotionDetail,
   PublishingAccount,
-  PublicationVerification,
   ResourceLink,
 } from '../../domain/models';
 import { isPublishingChannel, publishingChannelLabel } from '../../domain/channels';
@@ -69,7 +66,6 @@ import {
   PublicationDialog,
   PromotionEditDialog,
   ResourceDialog,
-  VerificationDialog,
 } from './ActionForms';
 
 function channelName(value: string) {
@@ -84,8 +80,7 @@ type DialogState =
   | { type: 'edit' }
   | { type: 'resource' }
   | { type: 'approve'; decision: ApprovalDecisionInput['decision'] }
-  | { type: 'publication' }
-  | { type: 'verification' }
+  | { type: 'publication'; accountId?: string }
   | { type: 'invoice' }
   | { type: 'issue-invoice' }
   | { type: 'cancel' };
@@ -102,9 +97,17 @@ const workflowStages = [
     statuses: ['CREATOR_ASSIGNED', 'CREATIVE_IN_PROGRESS', 'REVISION_REQUESTED'],
   },
   { label: 'Approval', statuses: ['SUBMITTED_FOR_APPROVAL', 'APPROVED'] },
-  { label: 'Publishing', statuses: ['PUBLISHER_ASSIGNED', 'PUBLISHING_IN_PROGRESS', 'PUBLISHED'] },
-  { label: 'Verification', statuses: ['VERIFICATION_PENDING', 'VERIFIED'] },
-  { label: 'Sales', statuses: ['READY_FOR_INVOICING', 'INVOICED', 'COMPLETED'] },
+  {
+    label: 'Posting',
+    statuses: [
+      'PUBLISHER_ASSIGNED',
+      'PUBLISHING_IN_PROGRESS',
+      'PUBLISHED',
+      'VERIFICATION_PENDING',
+      'VERIFIED',
+    ],
+  },
+  { label: 'Finance', statuses: ['READY_FOR_INVOICING', 'INVOICED', 'COMPLETED'] },
 ] as const;
 
 function currentStageIndex(status: string) {
@@ -417,7 +420,9 @@ export function CreativeSection({
 }) {
   const activeResources = detail.resources.filter((resource) => !resource.archivedAt);
   const latestResource = activeResources[0];
+  const latestResourceReady = latestResource?.validationStatus === 'VALID';
   const canAttach = detail.promotion.allowedActions.includes('ATTACH_RESOURCE');
+  const canSubmit = detail.promotion.allowedActions.includes('SUBMIT_FOR_APPROVAL');
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,.6fr)]">
       <Card>
@@ -490,11 +495,20 @@ export function CreativeSection({
             <p className="mt-2 text-xs text-[var(--text-dim)]">
               {latestResource.provider.replace('_', ' ')} · {latestResource.validationStatus}
             </p>
-            {detail.promotion.allowedActions.includes('SUBMIT_FOR_APPROVAL') ? (
+            {canSubmit && latestResourceReady ? (
               <Button className="mt-5 w-full" onClick={() => onSubmit(latestResource.id)}>
                 <Send className="size-4" />
                 Mark ready for approval
               </Button>
+            ) : null}
+            {!canSubmit && detail.promotion.status === 'CREATIVE_IN_PROGRESS' ? (
+              <div className="mt-5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs leading-5 text-[var(--text-muted)]">
+                {latestResource.validationStatus === 'PENDING'
+                  ? 'The creative link is still being prepared. External links are available immediately; private uploads become ready after the upload finalizes.'
+                  : latestResource.validationStatus === 'VALID'
+                    ? 'This creative is ready, but your account cannot move this promotion to approval.'
+                    : 'Attach another creative link. This resource is not usable for approval.'}
+              </div>
             ) : null}
             {canAttach ? (
               <Button className="mt-3 w-full" variant="secondary" onClick={onAdd}>
@@ -605,84 +619,26 @@ function ApprovalSection({
   );
 }
 
-function verificationDetailValue(value: unknown) {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (value === null) return 'None';
-  return JSON.stringify(value, null, 2);
-}
-
-function VerificationHistory({ verifications }: { verifications: PublicationVerification[] }) {
-  if (!verifications.length) {
-    return (
-      <p className="text-xs text-[var(--text-dim)]">
-        No verification attempts have been recorded yet.
-      </p>
-    );
-  }
-
-  return (
-    <ol className="grid gap-3">
-      {verifications.map((verification) => {
-        const details = Object.entries(verification.details);
-        return (
-          <li
-            key={verification.id}
-            className="rounded-lg border border-[var(--border)] bg-black/10 p-4"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Badge
-                tone={
-                  verification.status === 'VERIFIED'
-                    ? 'success'
-                    : verification.status === 'FAILED'
-                      ? 'danger'
-                      : 'attention'
-                }
-              >
-                {verification.status}
-              </Badge>
-              <p className="text-xs text-[var(--text-dim)]">
-                {verification.method.replaceAll('_', ' ')} ·{' '}
-                {formatDateTime(verification.verifiedAt)}
-              </p>
-            </div>
-            {details.length ? (
-              <dl className="mt-3 grid gap-2">
-                {details.map(([key, value]) => (
-                  <div key={key} className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)]">
-                    <dt className="text-[10px] font-bold tracking-[0.08em] text-[var(--text-dim)] uppercase">
-                      {key.replaceAll('_', ' ')}
-                    </dt>
-                    <dd className="text-xs leading-5 whitespace-pre-wrap text-[var(--text-muted)]">
-                      {verificationDetailValue(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="mt-3 text-xs text-[var(--text-dim)]">No additional details recorded.</p>
-            )}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 function PublishingSection({
   detail,
   accounts,
-  onRequestVerification,
+  onRecordPublication,
 }: {
   detail: PromotionDetail;
   accounts: PublishingAccount[];
-  onRequestVerification(id: string): void;
+  onRecordPublication(accountId?: string): void;
 }) {
   const selectedAccountIds = new Set(detail.metadata?.publishingAccountIds ?? []);
   const selectedAccounts = accounts.filter((account) => selectedAccountIds.has(account.id));
+  const canRecord = detail.promotion.allowedActions.includes('RECORD_PUBLICATION');
   const completedAccounts = selectedAccounts.filter((account) =>
-    detail.publications.some((publication) => publication.provider === account.platform),
+    detail.publications.some(
+      (publication) =>
+        publication.publishingAccountId === account.id ||
+        (!publication.publishingAccountId &&
+          publication.provider === account.platform &&
+          publication.destination === account.handle),
+    ),
   );
   return (
     <div className="space-y-5">
@@ -706,7 +662,11 @@ function PublishingSection({
           <div className="divide-y divide-[var(--border)]">
             {selectedAccounts.map((account) => {
               const publication = detail.publications.find(
-                (item) => item.provider === account.platform,
+                (item) =>
+                  item.publishingAccountId === account.id ||
+                  (!item.publishingAccountId &&
+                    item.provider === account.platform &&
+                    item.destination === account.handle),
               );
               return (
                 <div
@@ -736,7 +696,19 @@ function PublishingSection({
                       </a>
                     </Button>
                   ) : (
-                    <Badge tone="attention">Awaiting publication</Badge>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="attention">Awaiting post</Badge>
+                      {canRecord ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => onRecordPublication(account.id)}
+                        >
+                          <Send className="size-3.5" />
+                          Record post
+                        </Button>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               );
@@ -744,9 +716,18 @@ function PublishingSection({
           </div>
         ) : (
           <CardBody>
-            <p className="text-sm text-[var(--text-muted)]">
-              No channel accounts selected. Edit the promotion brief to build the checklist.
-            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-[var(--text-muted)]">
+                No channel accounts selected. Record one publication to move this promotion to
+                finance.
+              </p>
+              {canRecord ? (
+                <Button size="sm" onClick={() => onRecordPublication()}>
+                  <Send className="size-3.5" />
+                  Record publication
+                </Button>
+              ) : null}
+            </div>
           </CardBody>
         )}
       </Card>
@@ -828,25 +809,8 @@ function PublishingSection({
                         Open publication <ArrowUpRight className="size-3.5" />
                       </a>
                     </Button>
-                    {detail.promotion.allowedActions.includes(
-                      'REQUEST_PUBLICATION_VERIFICATION',
-                    ) ? (
-                      <Button size="sm" onClick={() => onRequestVerification(publication.id)}>
-                        <ShieldCheck className="size-3.5" />
-                        Request verification
-                      </Button>
-                    ) : null}
                   </div>
                 </div>
-                <section
-                  className="mt-5 border-t border-[var(--border)] pt-5"
-                  aria-label={`Verification history for ${channelName(publication.provider)} ${publication.destination}`}
-                >
-                  <h4 className="mb-3 text-xs font-semibold text-[var(--text)]">
-                    Verification history
-                  </h4>
-                  <VerificationHistory verifications={publication.verifications} />
-                </section>
               </article>
             ))}
           </div>
@@ -879,8 +843,8 @@ function FinanceSection({
     <div className="space-y-5">
       <Card>
         <CardHeader
-          title="Verification evidence"
-          description="Every immutable verification attempt supporting the sales handoff."
+          title="Posting evidence"
+          description="Live post links recorded before the finance handoff."
         />
         {detail.publications.length ? (
           <div className="divide-y divide-[var(--border)]">
@@ -908,26 +872,25 @@ function FinanceSection({
                       {publication.verificationStatus}
                     </Badge>
                   ) : (
-                    <Badge tone="attention">UNVERIFIED</Badge>
+                    <Badge tone="success">RECORDED</Badge>
                   )}
                 </div>
-                <VerificationHistory verifications={publication.verifications} />
               </section>
             ))}
           </div>
         ) : (
           <EmptyState
-            icon={<ShieldCheck className="size-5" />}
+            icon={<Send className="size-5" />}
             title="No publication evidence"
-            description="Verified publication evidence will appear here before invoicing is unlocked."
+            description="Recorded publication links will appear here before invoicing is unlocked."
           />
         )}
       </Card>
 
       <Card>
         <CardHeader
-          title="Sales"
-          description="Billing becomes available only after verified publication evidence."
+          title="Finance"
+          description="Billing becomes available after every selected post is recorded."
           action={
             detail.promotion.allowedActions.includes('CREATE_INVOICE') ? (
               <Button size="sm" onClick={onCreate}>
@@ -1016,8 +979,8 @@ function FinanceSection({
             }
             description={
               detail.promotion.status === 'READY_FOR_INVOICING'
-                ? 'Verification is complete. Register the external invoice or create a local draft.'
-                : 'A verified publication is required before an invoice can be created.'
+                ? 'Posting is complete. Register the external invoice or create a local draft.'
+                : 'Recorded publication links are required before an invoice can be created.'
             }
             action={
               detail.promotion.allowedActions.includes('CREATE_INVOICE') ? (
@@ -1080,6 +1043,205 @@ function ActivitySection({ detail, audit = false }: { detail: PromotionDetail; a
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function WorkflowNextStep({
+  detail,
+  canViewFinance,
+  onAddResource,
+  onAssignCreator,
+  onStartCreative,
+  onSubmitForApproval,
+  onApprove,
+  onRequestRevision,
+  onStartPublishing,
+  onRecordPublication,
+  onRegisterInvoice,
+  onIssueInvoice,
+  onMarkInvoicePaid,
+  onCompletePromotion,
+}: {
+  detail: PromotionDetail;
+  canViewFinance: boolean;
+  onAddResource(): void;
+  onAssignCreator(): void;
+  onStartCreative(): void;
+  onSubmitForApproval(resourceId: string): void;
+  onApprove(): void;
+  onRequestRevision(): void;
+  onStartPublishing(): void;
+  onRecordPublication(): void;
+  onRegisterInvoice(): void;
+  onIssueInvoice(): void;
+  onMarkInvoicePaid(): void;
+  onCompletePromotion(): void;
+}) {
+  const { promotion } = detail;
+  const actions = promotion.allowedActions;
+  const activeResources = detail.resources.filter((resource) => !resource.archivedAt);
+  const readyResource = activeResources.find((resource) => resource.validationStatus === 'VALID');
+  const latestResource = activeResources[0];
+
+  let title = 'Workflow complete';
+  let description = 'No action is pending right now.';
+  let action: ReactNode = null;
+  let secondaryAction: ReactNode = null;
+
+  if (promotion.status === 'CANCELLED') {
+    title = 'Promotion cancelled';
+    description = 'This promotion is closed and cannot move forward.';
+  } else if (promotion.status === 'COMPLETED') {
+    title = 'Promotion completed';
+    description = 'Creative, posting, finance, and payment are complete.';
+  } else if (actions.includes('ASSIGN_CREATOR') && !promotion.creatorId) {
+    title = 'Assign a creator';
+    description = 'Choose the person who will own creative production and the remaining workflow.';
+    action = (
+      <Button onClick={onAssignCreator}>
+        <UserRound className="size-4" />
+        Assign creator
+      </Button>
+    );
+  } else if (actions.includes('START_CREATIVE_WORK')) {
+    title = promotion.status === 'REVISION_REQUESTED' ? 'Start the revision' : 'Start creative';
+    description = 'Move this promotion into active creative work.';
+    action = (
+      <Button onClick={onStartCreative}>
+        <Play className="size-4" />
+        Start creative
+      </Button>
+    );
+  } else if (promotion.status === 'CREATIVE_IN_PROGRESS') {
+    if (!activeResources.length) {
+      title = 'Attach the finished creative';
+      description = 'Upload or paste the finished creative link before sending it to approval.';
+      action = actions.includes('ATTACH_RESOURCE') ? (
+        <Button onClick={onAddResource}>
+          <Plus className="size-4" />
+          Attach creative link
+        </Button>
+      ) : null;
+    } else if (readyResource && actions.includes('SUBMIT_FOR_APPROVAL')) {
+      title = 'Send creative to approval';
+      description = `${readyResource.displayName} is ready to move to approval.`;
+      action = (
+        <Button onClick={() => onSubmitForApproval(readyResource.id)}>
+          <Send className="size-4" />
+          Mark ready for approval
+        </Button>
+      );
+      secondaryAction = actions.includes('ATTACH_RESOURCE') ? (
+        <Button variant="secondary" onClick={onAddResource}>
+          <Plus className="size-4" />
+          Attach another link
+        </Button>
+      ) : null;
+    } else {
+      title = 'Creative is attached';
+      description =
+        latestResource?.validationStatus === 'PENDING'
+          ? 'The creative is attached but not ready yet. Private uploads become ready after upload finalization.'
+          : 'The attached creative cannot be submitted. Attach a replacement creative link.';
+      action = actions.includes('ATTACH_RESOURCE') ? (
+        <Button onClick={onAddResource}>
+          <Plus className="size-4" />
+          Attach another link
+        </Button>
+      ) : null;
+    }
+  } else if (promotion.status === 'SUBMITTED_FOR_APPROVAL') {
+    title = 'Approve or request revision';
+    description = 'Any user with access to this promotion can review the submitted creative.';
+    if (actions.includes('DECIDE_APPROVAL')) {
+      action = (
+        <Button onClick={onApprove}>
+          <Check className="size-4" />
+          Approve
+        </Button>
+      );
+      secondaryAction = (
+        <Button variant="secondary" onClick={onRequestRevision}>
+          <MessageSquareWarning className="size-4" />
+          Request revision
+        </Button>
+      );
+    }
+  } else if (actions.includes('START_PUBLISHING')) {
+    title = 'Start posting';
+    description = 'The creative is approved. Move into posting and record each live URL.';
+    action = (
+      <Button onClick={onStartPublishing}>
+        <Play className="size-4" />
+        Start posting
+      </Button>
+    );
+  } else if (actions.includes('RECORD_PUBLICATION')) {
+    title = 'Record live posts';
+    description =
+      'Paste each live promo URL. Finance unlocks when every selected account is complete.';
+    action = (
+      <Button onClick={onRecordPublication}>
+        <Send className="size-4" />
+        Record post
+      </Button>
+    );
+  } else if (actions.includes('CREATE_INVOICE')) {
+    title = 'Register invoice';
+    description = 'Sales can register the invoice after all selected posts are recorded.';
+    action = canViewFinance ? (
+      <Button onClick={onRegisterInvoice}>
+        <ReceiptText className="size-4" />
+        Register invoice
+      </Button>
+    ) : null;
+  } else if (promotion.status === 'INVOICED' && detail.invoice) {
+    if (detail.invoice.status === 'DRAFT') {
+      title = 'Issue invoice';
+      description = 'Add the final invoice number and issue it.';
+      action = (
+        <Button onClick={onIssueInvoice}>
+          <ReceiptText className="size-4" />
+          Issue invoice
+        </Button>
+      );
+    } else if (detail.invoice.status === 'ISSUED') {
+      title = 'Mark invoice paid';
+      description = 'Record payment before completing the promotion.';
+      action = (
+        <Button onClick={onMarkInvoicePaid}>
+          <CircleDollarSign className="size-4" />
+          Mark paid
+        </Button>
+      );
+    } else if (actions.includes('MARK_COMPLETED')) {
+      title = 'Complete promotion';
+      description = 'Payment is recorded. Close out the promotion.';
+      action = (
+        <Button onClick={onCompletePromotion}>
+          <PartyPopper className="size-4" />
+          Mark as completed
+        </Button>
+      );
+    }
+  }
+
+  return (
+    <div className="mt-5 flex flex-col gap-4 rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+          Next step
+        </p>
+        <h2 className="mt-1 text-sm font-semibold text-[var(--text)]">{title}</h2>
+        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{description}</p>
+      </div>
+      {action || secondaryAction ? (
+        <div className="flex flex-wrap gap-2">
+          {secondaryAction}
+          {action}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1168,7 +1330,6 @@ export function PromotionDetailPage() {
   const stage = currentStageIndex(promotion.status);
   const pendingSubmission =
     detail.submissions.find((submission) => submission.state === 'PENDING') ?? null;
-  const currentPublication = detail.publications[0];
   const canViewFinance = canViewFinanceQueue(profile?.roles ?? []);
   const run = (request: ActionRequest) => action.mutate(request);
   const requestInvoiceStatus = (status: Invoice['status']) => {
@@ -1334,28 +1495,6 @@ export function PromotionDetailPage() {
               Record publication
             </ActionButton>
             <ActionButton
-              action="RECORD_PUBLICATION_VERIFICATION"
-              allowed={allowed}
-              onClick={() => setDialog({ type: 'verification' })}
-            >
-              <ShieldCheck className="size-4" />
-              Verify publication
-            </ActionButton>
-            <ActionButton
-              action="COMPLETE_VERIFIED_WORKFLOW"
-              allowed={allowed}
-              onClick={() =>
-                run({
-                  run: () =>
-                    campaignService.completeVerifiedWorkflow(promotion.id, promotion.version),
-                  success: 'Promotion is ready for invoicing.',
-                })
-              }
-            >
-              <CircleDollarSign className="size-4" />
-              Complete verification
-            </ActionButton>
-            <ActionButton
               action="CREATE_INVOICE"
               allowed={allowed}
               onClick={() => setDialog({ type: 'invoice' })}
@@ -1416,6 +1555,43 @@ export function PromotionDetailPage() {
             Next handoff follows the current workflow stage.
           </span>
         </div>
+        <WorkflowNextStep
+          detail={detail}
+          canViewFinance={canViewFinance}
+          onAddResource={() => setDialog({ type: 'resource' })}
+          onAssignCreator={() => setDialog({ type: 'assign', role: 'CREATOR' })}
+          onStartCreative={() =>
+            run({
+              run: () => campaignService.startCreativeWork(promotion.id, promotion.version),
+              success: 'Creative work started.',
+            })
+          }
+          onSubmitForApproval={(resourceId) =>
+            run({
+              run: () =>
+                campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
+              success: 'Creative marked ready for approval.',
+            })
+          }
+          onApprove={() => setDialog({ type: 'approve', decision: 'APPROVED' })}
+          onRequestRevision={() => setDialog({ type: 'approve', decision: 'REVISION_REQUESTED' })}
+          onStartPublishing={() =>
+            run({
+              run: () => campaignService.startPublishing(promotion.id, promotion.version),
+              success: 'Posting started.',
+            })
+          }
+          onRecordPublication={() => setDialog({ type: 'publication' })}
+          onRegisterInvoice={() => setDialog({ type: 'invoice' })}
+          onIssueInvoice={() => setDialog({ type: 'issue-invoice' })}
+          onMarkInvoicePaid={() => requestInvoiceStatus('PAID')}
+          onCompletePromotion={() =>
+            run({
+              run: () => campaignService.completePromotion(promotion.id, promotion.version),
+              success: 'Promotion marked as completed.',
+            })
+          }
+        />
       </section>
 
       <Tabs.Root defaultValue="overview">
@@ -1487,12 +1663,7 @@ export function PromotionDetailPage() {
           <PublishingSection
             detail={detail}
             accounts={accountsQuery.data ?? []}
-            onRequestVerification={(publicationId) =>
-              run({
-                run: () => campaignService.requestVerification(publicationId, promotion.version),
-                success: 'Verification requested.',
-              })
-            }
+            onRecordPublication={(accountId) => setDialog({ type: 'publication', accountId })}
           />
         </Tabs.Content>
         {canViewFinance ? (
@@ -1582,6 +1753,10 @@ export function PromotionDetailPage() {
         open={dialog?.type === 'publication'}
         onOpenChange={(open) => !open && setDialog(null)}
         pending={action.isPending}
+        accounts={(accountsQuery.data ?? []).filter((account) =>
+          (detail.metadata?.publishingAccountIds ?? []).includes(account.id),
+        )}
+        initialAccountId={dialog?.type === 'publication' ? dialog.accountId : undefined}
         resources={getApprovedPublicationResources(detail)}
         onSubmit={(input: PublicationInput) =>
           run({
@@ -1589,22 +1764,6 @@ export function PromotionDetailPage() {
             success: 'Publication recorded.',
           })
         }
-      />
-      <VerificationDialog
-        open={dialog?.type === 'verification'}
-        onOpenChange={(open) => !open && setDialog(null)}
-        pending={action.isPending}
-        onSubmit={(input: VerificationInput) => {
-          if (!currentPublication) return;
-          run({
-            run: () =>
-              campaignService.recordVerification(currentPublication.id, input, promotion.version),
-            success:
-              input.status === 'VERIFIED'
-                ? 'Publication verified and sales notified.'
-                : 'Verification attempt recorded.',
-          });
-        }}
       />
       <InvoiceDialog
         open={dialog?.type === 'invoice'}

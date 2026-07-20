@@ -48,7 +48,7 @@ select has_trigger(
   'verifications are immutable'
 );
 select has_trigger('public', 'audit_log', 'audit_log_immutable', 'audit rows are immutable');
-select is((select count(*)::integer from public.roles), 6, 'all six application roles are seeded');
+select is((select count(*)::integer from public.roles), 3, 'all three application roles are seeded');
 select results_eq(
   $$select public, file_size_limit from storage.buckets where id = 'promotion-assets'$$,
   $$values (false, 26214400::bigint)$$,

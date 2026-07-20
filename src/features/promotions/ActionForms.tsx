@@ -3,7 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
 
-import type { ApprovalSubmission, Promotion, ResourceLink } from '../../domain/models';
+import type {
+  ApprovalSubmission,
+  Promotion,
+  PublishingAccount,
+  ResourceLink,
+} from '../../domain/models';
 import { publishingChannelLabel, publishingChannels } from '../../domain/channels';
 import { getFriendlyError } from '../../domain/errors';
 import type { RoleCode } from '../../domain/permissions';
@@ -54,18 +59,6 @@ const assignmentMeta: Record<
   CREATOR: {
     title: 'Assign creator',
     description: 'Assigning the creator moves a Draft promotion into production.',
-    role: 'CREATOR',
-    label: 'Creator',
-  },
-  APPROVER: {
-    title: 'Assign creator',
-    description: 'Approval is handled by the assigned creator.',
-    role: 'CREATOR',
-    label: 'Creator',
-  },
-  PUBLISHER: {
-    title: 'Assign creator',
-    description: 'Publishing is handled by the assigned creator.',
     role: 'CREATOR',
     label: 'Creator',
   },
@@ -474,10 +467,18 @@ export function ApprovalDialog({
 }
 
 export function PublicationDialog({
+  accounts,
+  initialAccountId,
   resources,
   onSubmit,
   ...props
-}: ControlledDialogProps & { resources: ResourceLink[]; onSubmit(input: PublicationInput): void }) {
+}: ControlledDialogProps & {
+  accounts?: PublishingAccount[];
+  initialAccountId?: string;
+  resources: ResourceLink[];
+  onSubmit(input: PublicationInput): void;
+}) {
+  const accountOptions = useMemo(() => accounts ?? [], [accounts]);
   const defaultPublishedAt = useMemo(() => toLocalDateTimeInputValue(new Date()), []);
   const defaultArtifactResourceLinkId = useMemo(
     () => resources.find((item) => !item.archivedAt)?.id ?? '',
@@ -486,8 +487,9 @@ export function PublicationDialog({
   const form = useForm<PublicationInput>({
     resolver: zodResolver(publicationSchema),
     defaultValues: {
-      provider: 'INSTAGRAM',
-      destination: '',
+      publishingAccountId: initialAccountId ?? '',
+      provider: accountOptions[0]?.platform ?? 'INSTAGRAM',
+      destination: accountOptions[0]?.handle ?? '',
       publicationUrl: '',
       externalPublicationId: '',
       artifactResourceLinkId: defaultArtifactResourceLinkId,
@@ -499,38 +501,91 @@ export function PublicationDialog({
     form.setValue('artifactResourceLinkId', defaultArtifactResourceLinkId);
   }, [defaultArtifactResourceLinkId, form]);
 
+  useEffect(() => {
+    if (!props.open) return;
+    const selected =
+      accountOptions.find((account) => account.id === initialAccountId) ?? accountOptions[0];
+    form.reset({
+      publishingAccountId: selected?.id ?? '',
+      provider: selected?.platform ?? 'INSTAGRAM',
+      destination: selected?.handle ?? '',
+      publicationUrl: '',
+      externalPublicationId: '',
+      artifactResourceLinkId: defaultArtifactResourceLinkId,
+      publishedAt: defaultPublishedAt,
+    });
+  }, [
+    accountOptions,
+    defaultArtifactResourceLinkId,
+    defaultPublishedAt,
+    form,
+    initialAccountId,
+    props.open,
+  ]);
+
+  const selectedAccountId = form.watch('publishingAccountId');
+
+  useEffect(() => {
+    const selected = accountOptions.find((account) => account.id === selectedAccountId);
+    if (!selected) return;
+    form.setValue('provider', selected.platform);
+    form.setValue('destination', selected.handle);
+  }, [accountOptions, form, selectedAccountId]);
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange} title="Record publication">
       <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid-ink)]">
           Manual publishing mode · evidence will be stored in the immutable publication history.
         </div>
-        <div className="grid gap-5 sm:grid-cols-2">
+        {accountOptions.length ? (
           <Field
-            label="Channel"
-            htmlFor="publication-provider"
-            error={form.formState.errors.provider?.message}
+            label="Publishing account"
+            htmlFor="publication-account"
+            error={form.formState.errors.publishingAccountId?.message}
           >
-            <Select id="publication-provider" {...form.register('provider')}>
-              {publishingChannels.map((channel) => (
-                <option key={channel} value={channel}>
-                  {publishingChannelLabel[channel]}
+            <Select id="publication-account" {...form.register('publishingAccountId')}>
+              {accountOptions.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.accountName} · {account.handle}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field
-            label="Destination"
-            htmlFor="publication-destination"
-            error={form.formState.errors.destination?.message}
-          >
-            <Input
-              id="publication-destination"
-              placeholder="@client_official"
-              {...form.register('destination')}
-            />
-          </Field>
-        </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              label="Channel"
+              htmlFor="publication-provider"
+              error={form.formState.errors.provider?.message}
+            >
+              <Select id="publication-provider" {...form.register('provider')}>
+                {publishingChannels.map((channel) => (
+                  <option key={channel} value={channel}>
+                    {publishingChannelLabel[channel]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field
+              label="Destination"
+              htmlFor="publication-destination"
+              error={form.formState.errors.destination?.message}
+            >
+              <Input
+                id="publication-destination"
+                placeholder="@client_official"
+                {...form.register('destination')}
+              />
+            </Field>
+          </div>
+        )}
+        {accountOptions.length ? (
+          <>
+            <input type="hidden" {...form.register('provider')} />
+            <input type="hidden" {...form.register('destination')} />
+          </>
+        ) : null}
         <Field
           label="Publication URL"
           htmlFor="publication-url"
