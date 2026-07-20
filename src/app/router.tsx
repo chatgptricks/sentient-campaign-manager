@@ -9,7 +9,7 @@ import { ConfigurationPage } from '../features/auth/ConfigurationPage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { NoAccessPage } from '../features/auth/NoAccessPage';
 import { PasswordSetupPage } from '../features/auth/PasswordSetupPage';
-import { isSupabaseConfigured, publicConfig } from '../lib/supabase/config';
+import { isSupabaseConfigured } from '../lib/supabase/config';
 import { NotFoundPage } from './NotFoundPage';
 import { canViewFinanceQueue } from '../features/my-work/visibility';
 
@@ -70,7 +70,7 @@ const AdministrationPage = lazy(() =>
 
 function ProtectedLayout() {
   const { credentialSetup, profile, loading } = useAuth();
-  if (!isSupabaseConfigured && !publicConfig.demoMode) return <ConfigurationPage />;
+  if (!isSupabaseConfigured) return <ConfigurationPage />;
   if (loading) return <PageLoader />;
   if (credentialSetup) return <PasswordSetupPage />;
   if (!profile) return <LoginPage />;

@@ -13,7 +13,6 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import type { Profile } from '../../domain/models';
 import type { RoleCode } from '../../domain/permissions';
-import { demoUser } from '../../lib/data/demo-service';
 import { supabase } from '../../lib/supabase/client';
 import { isSupabaseConfigured, publicConfig } from '../../lib/supabase/config';
 import { logger } from '../../lib/observability/logger';
@@ -90,8 +89,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return null;
   }, []);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(publicConfig.demoMode ? demoUser : null);
-  const [loading, setLoading] = useState(!publicConfig.demoMode && isSupabaseConfigured);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
   const [error, setError] = useState<string | null>(null);
   const [credentialSetup, setCredentialSetup] = useState<'invite' | 'recovery' | null>(
     initialCredentialSetup,
@@ -138,7 +137,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   useEffect(() => {
-    if (publicConfig.demoMode || !isSupabaseConfigured) {
+    if (!isSupabaseConfigured) {
       setLoading(false);
       return;
     }
@@ -170,7 +169,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
       error,
       credentialSetup,
       async signIn(email, password) {
-        if (publicConfig.demoMode) return;
         setError(null);
         const result = await supabase.auth.signInWithPassword({ email, password });
         if (result.error) {
@@ -219,7 +217,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setCredentialSetup(null);
       },
       async signOut() {
-        if (publicConfig.demoMode) return;
         const result = await supabase.auth.signOut();
         if (result.error) throw result.error;
         clearCredentialCallbackUrl();

@@ -95,11 +95,6 @@ export function AppShell({ children }: PropsWithChildren) {
       ) : null}
 
       <div className="lg:pl-64">
-        {publicConfig.demoMode ? (
-          <div className="border-b border-[var(--acid)]/25 bg-[var(--acid)]/8 px-4 py-2 text-center text-xs font-semibold text-[var(--acid-ink)]">
-            Interactive development preview · data resets when the server restarts
-          </div>
-        ) : null}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--paper)] px-4 sm:px-6 lg:px-8">
           <Button
             className="lg:hidden"

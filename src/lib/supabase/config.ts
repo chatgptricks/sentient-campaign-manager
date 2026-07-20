@@ -5,7 +5,7 @@ export const publicConfig = {
   supabaseUrl: url,
   supabasePublishableKey: publishableKey,
   basePath: import.meta.env.VITE_BASE_PATH?.trim() || '/',
-  demoMode: import.meta.env.VITE_DEMO_MODE === 'true',
+  demoMode: false,
 };
 
 export const isSupabaseConfigured =
