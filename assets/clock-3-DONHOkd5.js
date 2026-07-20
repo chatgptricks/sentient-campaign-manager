@@ -1,0 +1,1 @@
+import{Q as e}from"./LoadingState-B4Iy1_tE.js";var t=e(`clock-3`,[[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}],[`path`,{d:`M12 6v6h4`,key:`135r8i`}]]);export{t};
