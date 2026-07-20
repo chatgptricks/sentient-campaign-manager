@@ -45,7 +45,8 @@ describe('truthful manual adapters', () => {
 
   it('passes a deterministic client message ID to configured Slack delivery', async () => {
     const requests: RequestInit[] = [];
-    const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toContain('chat.postMessage');
       requests.push(init ?? {});
       return Response.json({ ok: true, ts: '123.456' });
     };
@@ -64,6 +65,37 @@ describe('truthful manual adapters', () => {
     });
     expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(ids[0]).toBe(ids[1]);
+  });
+
+  it('opens a Slack DM channel before sending directly to an assigned user', async () => {
+    const requests: Array<{ url: string; body: unknown }> = [];
+    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = JSON.parse(String(init?.body));
+      requests.push({ url, body });
+      if (url.includes('conversations.open')) {
+        expect(body).toMatchObject({ users: 'U123' });
+        return Response.json({ ok: true, channel: { id: 'D123' } });
+      }
+      return Response.json({ ok: true, ts: '123.456' });
+    };
+    const adapter = new SlackNotificationAdapter(fetcher, 'xoxb-test', 'C123');
+
+    await adapter.send({
+      body: 'Body',
+      channel: 'SLACK',
+      idempotencyKey: 'notification:assigned-user',
+      recipient: 'U123',
+      subject: 'Subject',
+    });
+
+    expect(requests.map((request) => request.url)).toEqual([
+      'https://slack.com/api/chat.postMessage',
+      'https://slack.com/api/conversations.open',
+      'https://slack.com/api/chat.postMessage',
+    ]);
+    expect(requests[0]?.body).toMatchObject({ channel: 'C123' });
+    expect(requests[2]?.body).toMatchObject({ channel: 'D123' });
   });
 
   it('does not claim automatic publication verification', async () => {

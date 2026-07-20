@@ -102,13 +102,14 @@ export class SlackNotificationAdapter implements NotificationAdapter {
     // 1. Send activity log line to global tracking channel C0BJ627G19R
     ts = await this.postSlackMessage(this.trackingChannelId, text, message.idempotencyKey);
 
-    // 2. If recipient is a direct Slack User ID (starts with U) and different from tracking channel, send DM
+    // 2. If recipient is a direct Slack User ID, resolve the IM channel and send a DM.
     if (
       message.recipient &&
       message.recipient.startsWith('U') &&
       message.recipient !== this.trackingChannelId
     ) {
-      const userDmTs = await this.postSlackMessage(message.recipient, text, message.idempotencyKey);
+      const dmChannelId = await this.openDirectMessage(message.recipient);
+      const userDmTs = await this.postSlackMessage(dmChannelId, text, message.idempotencyKey);
       ts = ts || userDmTs;
     }
 
@@ -154,6 +155,33 @@ export class SlackNotificationAdapter implements NotificationAdapter {
       );
     }
     return payload.ts;
+  }
+
+  private async openDirectMessage(userId: string): Promise<string> {
+    const response = await this.fetcher('https://slack.com/api/conversations.open', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.botToken}`,
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify({ users: userId }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      channel?: { id?: string };
+      error?: string;
+    };
+    if (!response.ok || !payload.ok || !payload.channel?.id) {
+      console.error(
+        `Slack conversations.open for ${userId} failed: ${payload.error ?? response.status}`,
+      );
+      throw new HttpError(
+        502,
+        'SLACK_PROVIDER_ERROR',
+        `Slack could not open DM for user ${userId}: ${payload.error ?? response.status}.`,
+      );
+    }
+    return payload.channel.id;
   }
 }
 
