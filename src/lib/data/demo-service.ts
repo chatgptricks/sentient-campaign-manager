@@ -804,7 +804,7 @@ export const demoCampaignService: CampaignService = {
 
   async listProfiles(role?: RoleCode) {
     return profiles
-      .filter((profile) => !role || hasRole(profile.roles, role))
+      .filter((profile) => !role || profile.roles.length === 0 || hasRole(profile.roles, role))
       .map((profile) => ({ ...profile }));
   },
 

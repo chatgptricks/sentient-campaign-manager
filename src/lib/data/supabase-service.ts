@@ -616,7 +616,11 @@ export const supabaseCampaignService: CampaignService = {
       };
     });
     return role
-      ? profiles.filter((profile) => profile.status === 'ACTIVE' && hasRole(profile.roles, role))
+      ? profiles.filter(
+          (profile) =>
+            profile.status === 'ACTIVE' &&
+            (profile.roles.length === 0 || hasRole(profile.roles, role)),
+        )
       : profiles;
   },
 
