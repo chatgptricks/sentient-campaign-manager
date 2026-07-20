@@ -38,11 +38,47 @@ function requiredPayloadId(event: OutboxEvent, snakeCase: string, camelCase: str
 const ASSIGNMENT_EVENTS = ['CreatorAssigned', 'ApproverAssigned', 'PublisherAssigned'];
 
 /**
- * The tracking channel is an audit log, so its line stays terse and impersonal: what
- * happened, to which promotion. Names and calls to action belong in the DM instead.
+ * One sentence describing an event: who did what, to which promotion, and to whom.
+ * The actor and assignee are passed in so the same wording can render with plain
+ * display names for the audit channel or with Slack mentions for a DM.
  */
-export function buildSlackAuditLine(subject: string, titleLink: string): string {
-  return `${subject} · ${titleLink}`;
+export function describeOutboxEvent(input: {
+  actor: string;
+  assignee: string;
+  eventType: string;
+  titleLink: string;
+}): string {
+  const { actor, assignee, eventType, titleLink } = input;
+  switch (eventType) {
+    case 'CreatorAssigned':
+    case 'ApproverAssigned':
+    case 'PublisherAssigned':
+      return `${actor} assigned ${titleLink} to ${assignee}.`;
+    case 'CreativeWorkStarted':
+      return `${actor} started creative work on ${titleLink}.`;
+    case 'ApprovalSubmitted':
+      return `${actor} marked ${titleLink} ready for approval.`;
+    case 'PromotionApproved':
+      return `${actor} approved ${titleLink}.`;
+    case 'PromotionRevisionRequested':
+      return `${actor} requested a revision on ${titleLink}.`;
+    case 'PublicationRecorded':
+      return `${actor} recorded the publication of ${titleLink}.`;
+    case 'PublicationVerificationRequested':
+      return `${actor} requested publication verification for ${titleLink}.`;
+    case 'PublicationVerified':
+      return `Publication verified for ${titleLink}.`;
+    case 'InvoiceIssued':
+      return `${actor} issued an invoice for ${titleLink}.`;
+    case 'InvoicePaid':
+      return `Invoice paid for ${titleLink}.`;
+    case 'PromotionCompleted':
+      return `${actor} marked ${titleLink} as completed.`;
+    case 'PromotionCancelled':
+      return `${actor} cancelled ${titleLink}.`;
+    default:
+      return `${actor} updated ${titleLink}.`;
+  }
 }
 
 /**
@@ -51,16 +87,15 @@ export function buildSlackAuditLine(subject: string, titleLink: string): string 
  * is the person reading it.
  */
 export function buildSlackDirectMessage(input: {
-  actorMention: string;
-  body: string;
+  description: string;
   eventType: string;
   mention: string;
-  titleLink: string;
+  recipientAssignment: string;
 }): string {
   if (ASSIGNMENT_EVENTS.includes(input.eventType)) {
-    return `Hey ${input.mention}, ${input.actorMention} just assigned ${input.titleLink} to your tasks.`;
+    return `Hey ${input.mention}, ${input.recipientAssignment}`;
   }
-  return `Hey ${input.mention}, ${input.body}`;
+  return `Hey ${input.mention}, ${input.description}`;
 }
 
 /**
@@ -188,81 +223,47 @@ async function createPayloadNotification(
 
   const titleLink = promoUrl ? `<${promoUrl}|*${promotionTitle}*>` : `*${promotionTitle}*`;
 
-  let body = typeof payload.body === 'string' ? payload.body : '';
-  if (!body) {
-    switch (event.event_type) {
-      case 'CreatorAssigned':
-      case 'ApproverAssigned':
-      case 'PublisherAssigned': {
-        const assignedId = assignedUserIdFrom(payload);
-        let assigneeTag = 'someone';
-        if (assignedId) {
-          const { data: assigneeProfile } = await client
-            .from('profiles')
-            .select('display_name, slack_user_id')
-            .eq('id', assignedId)
-            .maybeSingle();
-          if (assigneeProfile?.slack_user_id) {
-            assigneeTag = `<@${assigneeProfile.slack_user_id}>`;
-          } else if (assigneeProfile?.display_name) {
-            assigneeTag = assigneeProfile.display_name;
-          }
-        }
-        body = `${actorName} assigned ${titleLink} to ${assigneeTag}.`;
-        break;
-      }
-      case 'CreativeWorkStarted':
-        body = `${actorName} started creative work on ${titleLink}.`;
-        break;
-      case 'ApprovalSubmitted':
-        body = `${actorName} submitted ${titleLink} for approval.`;
-        break;
-      case 'PromotionApproved':
-        body = `${actorName} approved ${titleLink}.`;
-        break;
-      case 'PromotionRevisionRequested':
-        body = `${actorName} requested revision for ${titleLink}.`;
-        break;
-      case 'PublicationRecorded':
-        body = `${actorName} recorded publication for ${titleLink}.`;
-        break;
-      case 'PublicationVerificationRequested':
-        body = `${actorName} requested publication verification for ${titleLink}.`;
-        break;
-      case 'PublicationVerified':
-        body = `Publication verified for ${titleLink}.`;
-        break;
-      case 'InvoiceIssued':
-        body = `${actorName} issued an invoice for ${titleLink}.`;
-        break;
-      case 'InvoicePaid':
-        body = `Invoice paid for ${titleLink}.`;
-        break;
-      case 'PromotionCompleted':
-        body = `${actorName} marked ${titleLink} as completed.`;
-        break;
-      case 'PromotionCancelled':
-        body = `${actorName} cancelled ${titleLink}.`;
-        break;
-      default:
-        body = `${actorName} updated ${titleLink}.`;
-        break;
+  let assigneeName = 'someone';
+  let assigneeMention = 'someone';
+  if (ASSIGNMENT_EVENTS.includes(event.event_type)) {
+    const assignedId = assignedUserIdFrom(payload);
+    if (assignedId) {
+      const { data: assigneeProfile } = await client
+        .from('profiles')
+        .select('display_name, slack_user_id')
+        .eq('id', assignedId)
+        .maybeSingle();
+      if (assigneeProfile?.display_name) assigneeName = assigneeProfile.display_name;
+      assigneeMention = assigneeProfile?.slack_user_id
+        ? `<@${assigneeProfile.slack_user_id}>`
+        : assigneeName;
     }
   }
+
+  const describe = (actor: string, assignee: string) =>
+    describeOutboxEvent({ actor, assignee, eventType: event.event_type, titleLink });
+
+  // Plain display names, never Slack mentions: this text is reused for the in-app
+  // notification and for the audit channel, where a mention would ping the person.
+  const body =
+    typeof payload.body === 'string' && payload.body
+      ? payload.body
+      : describe(actorName, assigneeName);
 
   const subject =
     typeof payload.subject === 'string'
       ? payload.subject
       : event.event_type.replace(/([a-z])([A-Z])/g, '$1 $2');
 
-  const auditLine = buildSlackAuditLine(subject, titleLink);
+  // Audit channel: who did what to whom, with plain names so nobody gets pinged.
+  const auditLine = body;
+  // DM: the same event, addressed to the reader, with the other people as mentions.
   const directMessageFor = (mention: string) =>
     buildSlackDirectMessage({
-      actorMention,
-      body,
+      description: describe(actorMention, assigneeMention),
       eventType: event.event_type,
       mention,
-      titleLink,
+      recipientAssignment: `${actorMention} just assigned ${titleLink} to your tasks.`,
     });
 
   const notificationType = `${event.event_type}:${event.id}`;

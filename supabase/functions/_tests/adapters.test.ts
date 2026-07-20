@@ -6,7 +6,7 @@ import {
   SlackNotificationAdapter,
 } from '../_shared/adapters/notification.ts';
 import { ManualPublishingAdapter } from '../_shared/adapters/publishing.ts';
-import { buildSlackAuditLine, buildSlackDirectMessage } from '../_shared/outbox.ts';
+import { buildSlackDirectMessage, describeOutboxEvent } from '../_shared/outbox.ts';
 import type { DatabaseClient } from '../_shared/database.ts';
 import { testIntegrationConnection } from '../_shared/services/integration-test.ts';
 
@@ -69,43 +69,62 @@ describe('truthful manual adapters', () => {
     expect(ids[0]).toBe(ids[1]);
   });
 
-  it('keeps the tracking-channel audit line short and impersonal', () => {
-    const line = buildSlackAuditLine(
-      'Creator Assigned',
-      '<https://app.example/#/promotions/1|*Summer rooftop launch*>',
-    );
+  const titleLink = '<https://app.example/#/promotions/1|*Summer rooftop launch*>';
 
-    expect(line).toBe(
-      'Creator Assigned · <https://app.example/#/promotions/1|*Summer rooftop launch*>',
-    );
+  it('records who assigned what to whom, without pinging anyone', () => {
+    const line = describeOutboxEvent({
+      actor: 'Sergio',
+      assignee: 'Esteban',
+      eventType: 'CreatorAssigned',
+      titleLink,
+    });
+
+    expect(line).toBe(`Sergio assigned ${titleLink} to Esteban.`);
     expect(line).not.toContain('<@');
-    expect(line).not.toMatch(/Hey /);
   });
 
-  it('addresses an assignment DM to the reader and links the promotion', () => {
+  it('names the actor for workflow steps that have no assignee', () => {
+    expect(
+      describeOutboxEvent({
+        actor: 'Esteban',
+        assignee: 'someone',
+        eventType: 'ApprovalSubmitted',
+        titleLink,
+      }),
+    ).toBe(`Esteban marked ${titleLink} ready for approval.`);
+  });
+
+  it('renders the same event with mentions for a direct message', () => {
+    expect(
+      describeOutboxEvent({
+        actor: '<@USERGIO>',
+        assignee: '<@UESTEBAN>',
+        eventType: 'CreatorAssigned',
+        titleLink,
+      }),
+    ).toBe(`<@USERGIO> assigned ${titleLink} to <@UESTEBAN>.`);
+  });
+
+  it('addresses an assignment DM to the reader rather than naming them', () => {
     const dm = buildSlackDirectMessage({
-      actorMention: '<@USERGIO>',
-      body: 'Sergio assigned *Summer rooftop launch* to <@UESTEBAN>.',
+      description: `<@USERGIO> assigned ${titleLink} to <@UESTEBAN>.`,
       eventType: 'CreatorAssigned',
       mention: '<@UESTEBAN>',
-      titleLink: '<https://app.example/#/promotions/1|*Summer rooftop launch*>',
+      recipientAssignment: `<@USERGIO> just assigned ${titleLink} to your tasks.`,
     });
 
-    expect(dm).toBe(
-      'Hey <@UESTEBAN>, <@USERGIO> just assigned <https://app.example/#/promotions/1|*Summer rooftop launch*> to your tasks.',
-    );
+    expect(dm).toBe(`Hey <@UESTEBAN>, <@USERGIO> just assigned ${titleLink} to your tasks.`);
   });
 
-  it('greets the reader for non-assignment events without repeating their name', () => {
+  it('greets the reader for non-assignment events', () => {
     const dm = buildSlackDirectMessage({
-      actorMention: '<@USERGIO>',
-      body: 'Sergio submitted *Summer rooftop launch* for approval.',
+      description: `<@USERGIO> marked ${titleLink} ready for approval.`,
       eventType: 'ApprovalSubmitted',
       mention: '<@UESTEBAN>',
-      titleLink: '<https://app.example/#/promotions/1|*Summer rooftop launch*>',
+      recipientAssignment: 'unused',
     });
 
-    expect(dm).toBe('Hey <@UESTEBAN>, Sergio submitted *Summer rooftop launch* for approval.');
+    expect(dm).toBe(`Hey <@UESTEBAN>, <@USERGIO> marked ${titleLink} ready for approval.`);
   });
 
   it('falls back to the default tracking channel when SLACK_CHANNEL_ID is unset', async () => {
