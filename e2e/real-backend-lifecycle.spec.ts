@@ -118,6 +118,8 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
     .fill('A database-backed workflow test from sales intake through invoicing.');
   const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await sales.page.getByLabel('Due date').fill(dueDate);
+  await sales.page.getByRole('button', { name: 'Continue' }).click();
+  await expect(sales.page.getByRole('checkbox', { name: 'Instagram' })).toBeVisible();
   await sales.page.getByRole('button', { name: 'Create promotion' }).click();
   await expect(sales.page.getByRole('heading', { name: title })).toBeVisible();
   const promotionHash = new URL(sales.page.url()).hash;
