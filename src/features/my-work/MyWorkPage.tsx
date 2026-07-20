@@ -69,7 +69,9 @@ export function MyWorkPage() {
   const all = query.data ?? [];
   const roles = profile?.roles ?? [];
   const owned = all.filter(
-    (item) => item.salesOwnerId === profile?.id && !['INVOICED', 'COMPLETED', 'CANCELLED'].includes(item.status),
+    (item) =>
+      item.salesOwnerId === profile?.id &&
+      !['INVOICED', 'COMPLETED', 'CANCELLED'].includes(item.status),
   );
   const creatorWork = all.filter(
     (item) =>

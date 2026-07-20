@@ -44,7 +44,9 @@ export function ClientDetailPage() {
   }
 
   const { client, promotions } = query.data;
-  const active = promotions.filter((item) => !['INVOICED', 'COMPLETED', 'CANCELLED'].includes(item.status));
+  const active = promotions.filter(
+    (item) => !['INVOICED', 'COMPLETED', 'CANCELLED'].includes(item.status),
+  );
   const completed = promotions.filter((item) => ['INVOICED', 'COMPLETED'].includes(item.status));
 
   return (

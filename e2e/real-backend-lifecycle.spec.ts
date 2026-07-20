@@ -52,9 +52,9 @@ async function processOutbox(page: Page) {
   await page.getByRole('tab', { name: 'Operations' }).click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Process pending batch' }).click();
-  await expect(
-    page.getByText(/Worker completed\. \d+ events? processed\./).last(),
-  ).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Worker completed\. \d+ events? processed\./).last()).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 async function waitForResourceValidation(

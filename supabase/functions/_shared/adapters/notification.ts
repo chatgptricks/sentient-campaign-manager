@@ -135,7 +135,11 @@ export class SlackNotificationAdapter implements NotificationAdapter {
         unfurl_media: false,
       }),
     });
-    const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; ts?: string; error?: string };
+    const payload = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      ts?: string;
+      error?: string;
+    };
     if (!response.ok || !payload.ok) {
       console.error(`Slack postMessage to ${channel} failed: ${payload.error ?? response.status}`);
       throw new HttpError(

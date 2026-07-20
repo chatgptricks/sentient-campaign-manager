@@ -460,7 +460,7 @@ export function AdministrationPage() {
                         <p className="mt-1 text-xs text-[var(--text-dim)]">
                           {user.email}
                           {user.slackUserId ? (
-                            <span className="ml-2 text-[11px] font-mono text-[var(--acid-ink)]">
+                            <span className="ml-2 font-mono text-[11px] text-[var(--acid-ink)]">
                               (Slack: {user.slackUserId})
                             </span>
                           ) : null}

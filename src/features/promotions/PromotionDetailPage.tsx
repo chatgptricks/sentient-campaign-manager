@@ -1308,8 +1308,7 @@ export function PromotionDetailPage() {
               allowed={allowed}
               onClick={() =>
                 run({
-                  run: () =>
-                    campaignService.completePromotion(promotion.id, promotion.version),
+                  run: () => campaignService.completePromotion(promotion.id, promotion.version),
                   success: 'Promotion marked as completed.',
                 })
               }

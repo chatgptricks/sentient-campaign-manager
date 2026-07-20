@@ -1191,7 +1191,10 @@ export const demoCampaignService: CampaignService = {
     const item = findPromotion(id);
     assertVersion(item, version);
     if (item.status !== 'INVOICED') {
-      throw new DomainError({ code: 'PROMOTION_INVALID_STATUS', message: 'Promotion must be invoiced to complete.' });
+      throw new DomainError({
+        code: 'PROMOTION_INVALID_STATUS',
+        message: 'Promotion must be invoiced to complete.',
+      });
     }
     transition(item, 'COMPLETED', 'PromotionCompleted', 'Sofia Rossi');
   },
