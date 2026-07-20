@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ApprovalSubmission, PromotionDetail, ResourceLink } from '../../domain/models';
 import { CreativeSection, ResourceAccessControl } from './PromotionDetailPage';
-import { getApprovedPublicationResources } from './presentation-helpers';
+import { getApprovedPublicationResources, getReferenceMaterial } from './presentation-helpers';
 
 const baseResource: ResourceLink = {
   id: '60000000-0000-4000-8000-000000000001',
@@ -90,6 +90,49 @@ describe('publication resource eligibility', () => {
     });
 
     expect(eligible).toEqual([baseResource]);
+  });
+});
+
+describe('reference material', () => {
+  const metadata: PromotionDetail['metadata'] = {
+    promotionId: baseResource.promotionId,
+    campaignType: 'Social promotion',
+    scheduledDate: null,
+    priority: 'NORMAL',
+    briefUrl: 'https://docs.google.com/brief',
+    clientMaterialLinks: ['https://drive.google.com/logo-pack'],
+    externalResourceLinks: ['https://example.com/reference'],
+    platforms: ['INSTAGRAM'],
+    publishingAccountIds: [],
+    externalPartnerAccountIds: [],
+    internalNotes: null,
+  };
+
+  it('groups the brief, client material, and supporting links', () => {
+    expect(getReferenceMaterial(metadata)).toEqual([
+      { group: 'Brief', url: 'https://docs.google.com/brief' },
+      { group: 'Client material', url: 'https://drive.google.com/logo-pack' },
+      { group: 'Supporting link', url: 'https://example.com/reference' },
+    ]);
+  });
+
+  it('omits a missing brief instead of rendering an empty entry', () => {
+    expect(getReferenceMaterial({ ...metadata, briefUrl: null })).toEqual([
+      { group: 'Client material', url: 'https://drive.google.com/logo-pack' },
+      { group: 'Supporting link', url: 'https://example.com/reference' },
+    ]);
+  });
+
+  it('never treats an attached creative file as reference material', () => {
+    expect(getReferenceMaterial(null)).toEqual([]);
+    expect(
+      getReferenceMaterial({
+        ...metadata,
+        briefUrl: null,
+        clientMaterialLinks: [],
+        externalResourceLinks: [],
+      }),
+    ).toEqual([]);
   });
 });
 

@@ -77,18 +77,39 @@ export class ResendNotificationAdapter implements NotificationAdapter {
   }
 }
 
+/** Sentient's activity channel, used whenever SLACK_CHANNEL_ID is not set in the environment. */
+export const DEFAULT_SLACK_TRACKING_CHANNEL_ID = 'C0BJ627G19R';
+
 export class SlackNotificationAdapter implements NotificationAdapter {
   readonly provider = 'SLACK';
   readonly configured: boolean;
-  private readonly trackingChannelId: string;
+  readonly trackingChannelId: string;
 
   constructor(
     private readonly fetcher: typeof fetch = fetch,
     private readonly botToken = getEnv('SLACK_BOT_TOKEN'),
     channelId = getEnv('SLACK_CHANNEL_ID'),
   ) {
-    this.trackingChannelId = channelId || 'C0BJ627G19R';
+    this.trackingChannelId = channelId?.trim() || DEFAULT_SLACK_TRACKING_CHANNEL_ID;
     this.configured = Boolean(botToken);
+  }
+
+  /** Posts one activity line to the shared tracking channel. */
+  async postToChannel(text: string, idempotencyKey: string): Promise<string | undefined> {
+    if (!this.configured || !this.botToken) return undefined;
+    return this.postSlackMessage(this.trackingChannelId, text, idempotencyKey);
+  }
+
+  /** Opens an IM channel with the user and delivers the message directly. */
+  async sendDirectMessage(
+    slackUserId: string,
+    text: string,
+    idempotencyKey: string,
+  ): Promise<string | undefined> {
+    if (!this.configured || !this.botToken) return undefined;
+    if (!slackUserId.startsWith('U')) return undefined;
+    const dmChannelId = await this.openDirectMessage(slackUserId);
+    return this.postSlackMessage(dmChannelId, text, idempotencyKey);
   }
 
   async send(message: NotificationMessage): Promise<NotificationDeliveryResult> {
@@ -97,25 +118,16 @@ export class SlackNotificationAdapter implements NotificationAdapter {
     }
 
     const text = message.body;
-    let ts: string | undefined;
+    const ts = await this.postToChannel(text, message.idempotencyKey);
 
-    // 1. Send activity log line to global tracking channel C0BJ627G19R
-    ts = await this.postSlackMessage(this.trackingChannelId, text, message.idempotencyKey);
-
-    // 2. If recipient is a direct Slack User ID, resolve the IM channel and send a DM.
-    if (
-      message.recipient &&
-      message.recipient.startsWith('U') &&
-      message.recipient !== this.trackingChannelId
-    ) {
-      const dmChannelId = await this.openDirectMessage(message.recipient);
-      const userDmTs = await this.postSlackMessage(dmChannelId, text, message.idempotencyKey);
-      ts = ts || userDmTs;
+    let dmTs: string | undefined;
+    if (message.recipient && message.recipient !== this.trackingChannelId) {
+      dmTs = await this.sendDirectMessage(message.recipient, text, message.idempotencyKey);
     }
 
     return {
       delivered: true,
-      externalId: ts,
+      externalId: ts ?? dmTs,
       message: 'Slack notification posted successfully.',
       mode: 'PROVIDER',
       status: 'SENT',

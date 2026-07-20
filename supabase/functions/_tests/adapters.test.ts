@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ManualAccountingAdapter } from '../_shared/adapters/accounting.ts';
 import {
+  DEFAULT_SLACK_TRACKING_CHANNEL_ID,
   ManualNotificationAdapter,
   SlackNotificationAdapter,
 } from '../_shared/adapters/notification.ts';
@@ -65,6 +66,27 @@ describe('truthful manual adapters', () => {
     });
     expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(ids[0]).toBe(ids[1]);
+  });
+
+  it('falls back to the default tracking channel when SLACK_CHANNEL_ID is unset', async () => {
+    const channels: string[] = [];
+    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toContain('chat.postMessage');
+      channels.push((JSON.parse(String(init?.body)) as { channel: string }).channel);
+      return Response.json({ ok: true, ts: '123.456' });
+    };
+    const adapter = new SlackNotificationAdapter(fetcher, 'xoxb-test', undefined);
+
+    expect(adapter.trackingChannelId).toBe(DEFAULT_SLACK_TRACKING_CHANNEL_ID);
+    const result = await adapter.send({
+      body: 'Body',
+      channel: 'SLACK',
+      idempotencyKey: 'notification:default-channel',
+      subject: 'Subject',
+    });
+
+    expect(channels).toEqual([DEFAULT_SLACK_TRACKING_CHANNEL_ID]);
+    expect(result).toMatchObject({ delivered: true, status: 'SENT' });
   });
 
   it('opens a Slack DM channel before sending directly to an assigned user', async () => {

@@ -111,11 +111,20 @@ jobs:
             SITE_URL="$PUBLIC_APP_URL"
             ADMIN_INVITE_REDIRECT_URL="$PUBLIC_APP_URL"
           )
+          # Slack stays optional. A missing bot token is the failure mode that silently
+          # produces no notifications at all, so say so loudly in the run summary.
           if [ -n "$SLACK_BOT_TOKEN" ]; then
             secret_args+=(SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN")
-          fi
-          if [ -n "$SLACK_CHANNEL_ID" ]; then
-            secret_args+=(SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID")
+            if [ -n "$SLACK_CHANNEL_ID" ]; then
+              secret_args+=(SLACK_CHANNEL_ID="$SLACK_CHANNEL_ID")
+            else
+              echo "::notice::SLACK_CHANNEL_ID is not set. Slack will post to the built-in default activity channel."
+            fi
+          else
+            echo "::warning::SLACK_BOT_TOKEN secret is not set. Slack notifications are disabled for this deployment."
+            if [ -n "$SLACK_CHANNEL_ID" ]; then
+              echo "::warning::SLACK_CHANNEL_ID is configured but unusable without SLACK_BOT_TOKEN."
+            fi
           fi
           npx --no-install supabase secrets set \
             --project-ref "$SUPABASE_PROJECT_ID" \

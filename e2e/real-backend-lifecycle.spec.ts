@@ -73,7 +73,7 @@ async function waitForResourceValidation(
     await adminPage.waitForTimeout(500);
     await creatorPage.reload();
     await openPromotion(creatorPage, promotionHash, title);
-    await creatorPage.getByRole('tab', { name: /Resources/ }).click();
+    await creatorPage.getByRole('tab', { name: /Creative/ }).click();
     const resource = creatorPage
       .getByRole('heading', { name: resourceName })
       .locator('xpath=ancestor::article');
@@ -134,7 +134,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   await openPromotion(creator.page, promotionHash, title);
   await creator.page.getByRole('button', { name: 'Start creative' }).first().click();
   await expect(creator.page.getByText('Creative in progress', { exact: true })).toBeVisible();
-  await creator.page.getByRole('tab', { name: /Resources/ }).click();
+  await creator.page.getByRole('tab', { name: /Creative/ }).click();
   await creator.page.getByRole('button', { name: 'Attach resource' }).first().click();
   await creator.page.getByLabel('Provider').selectOption('OTHER');
   await creator.page.getByLabel('Display name').fill('E2E creative v1');
@@ -161,7 +161,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
 
   await openPromotion(creator.page, promotionHash, title);
   await creator.page.getByRole('button', { name: 'Start creative' }).first().click();
-  await creator.page.getByRole('tab', { name: /Resources/ }).click();
+  await creator.page.getByRole('tab', { name: /Creative/ }).click();
   await creator.page.getByRole('button', { name: 'Attach resource' }).first().click();
   await creator.page.getByLabel('Provider').selectOption('OTHER');
   await creator.page.getByLabel('Display name').fill('E2E creative v2');

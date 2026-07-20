@@ -125,7 +125,11 @@ async function createPayloadNotification(
       .eq('id', promotionId)
       .maybeSingle();
     if (promoData?.title) promotionTitle = promoData.title;
-    promoUrl = `https://chatgptricks.github.io/sentient-campaign-manager/#/promotions/${promotionId}`;
+    // SITE_URL when the deployment provides it, otherwise the known production host so
+    // Slack messages never lose their promotion link.
+    const siteUrl =
+      getEnv('SITE_URL')?.trim() || 'https://chatgptricks.github.io/sentient-campaign-manager/';
+    promoUrl = `${siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`}#/promotions/${promotionId}`;
   }
 
   let actorName = 'Someone';
@@ -240,31 +244,94 @@ async function createPayloadNotification(
 
     if (error) throw databaseError(error, 'Outbox notification could not be created.');
     notificationIds.push(data.id);
-
-    // If SLACK_BOT_TOKEN is present in env, dispatch Slack notification to channel & user DM
-    const botToken = getEnv('SLACK_BOT_TOKEN');
-    if (botToken) {
-      try {
-        const { data: profile } = await client
-          .from('profiles')
-          .select('slack_user_id')
-          .eq('id', userId)
-          .maybeSingle();
-
-        const slackAdapter = new SlackNotificationAdapter(fetch, botToken);
-        await slackAdapter.send({
-          body,
-          channel: 'SLACK',
-          idempotencyKey: `outbox:${event.id}:slack:${userId}`,
-          recipient: profile?.slack_user_id ?? undefined,
-          subject,
-        });
-      } catch (slackErr) {
-        console.error(`Slack dispatch error for user ${userId}:`, slackErr);
-      }
-    }
   }
-  return { handled: true, notificationIds };
+
+  const slack = await dispatchSlackForEvent(client, event, [...recipients], body, subject);
+  return { handled: true, notificationIds, slack };
+}
+
+/**
+ * Delivers one Slack activity line per event to the tracking channel, plus a DM per
+ * recipient who has a Slack user ID. The channel post is deliberately outside the
+ * recipient loop: fanning it out per recipient posted N identical copies.
+ *
+ * Failures are recorded as integration attempts so they surface in Admin > Operations
+ * instead of vanishing into function logs.
+ */
+async function dispatchSlackForEvent(
+  client: DatabaseClient,
+  event: OutboxEvent,
+  recipients: string[],
+  body: string,
+  subject: string,
+): Promise<Record<string, unknown>> {
+  const promotionId = event.aggregate_type === 'Promotion' ? event.aggregate_id : null;
+  const adapter = new SlackNotificationAdapter();
+  if (!adapter.configured) {
+    return { delivered: false, reason: 'SLACK_BOT_TOKEN_MISSING' };
+  }
+
+  const attempt = async (
+    operation: string,
+    idempotencyKey: string,
+    run: () => Promise<string | undefined>,
+  ): Promise<boolean> => {
+    try {
+      const ts = await run();
+      if (ts === undefined) return false;
+      await recordIntegrationAttempt(client, {
+        aggregateId: promotionId,
+        idempotencyKey,
+        operation,
+        provider: 'SLACK',
+        requestMetadata: { eventId: event.id, eventType: event.event_type, subject },
+        responseMetadata: { ts },
+        status: 'SUCCEEDED',
+      });
+      return true;
+    } catch (caught) {
+      const code = caught instanceof HttpError ? caught.code : 'SLACK_PROVIDER_ERROR';
+      console.error(`Slack ${operation} failed for event ${event.id}: ${sanitizeText(code)}`);
+      await recordIntegrationAttempt(client, {
+        aggregateId: promotionId,
+        errorCode: code,
+        idempotencyKey: `${idempotencyKey}:failed:${crypto.randomUUID()}`,
+        operation,
+        provider: 'SLACK',
+        requestMetadata: { eventId: event.id, eventType: event.event_type, subject },
+        status: 'FAILED',
+      });
+      return false;
+    }
+  };
+
+  const channelKey = `outbox:${event.id}:slack:channel`;
+  const channelPosted = await attempt('SLACK_CHANNEL_POST', channelKey, () =>
+    adapter.postToChannel(body, channelKey),
+  );
+
+  let directMessages = 0;
+  for (const userId of recipients) {
+    const { data: profile } = await client
+      .from('profiles')
+      .select('slack_user_id')
+      .eq('id', userId)
+      .maybeSingle();
+    const slackUserId = profile?.slack_user_id;
+    if (!slackUserId) continue;
+    const key = `outbox:${event.id}:slack:dm:${userId}`;
+    const sent = await attempt('SLACK_DIRECT_MESSAGE', key, () =>
+      adapter.sendDirectMessage(slackUserId, body, key),
+    );
+    if (sent) directMessages += 1;
+  }
+
+  return {
+    channel: adapter.trackingChannelId,
+    channelPosted,
+    delivered: channelPosted || directMessages > 0,
+    directMessages,
+  };
 }
 
 export async function routeOutboxEvent(

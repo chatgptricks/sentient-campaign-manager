@@ -56,7 +56,11 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { PromotionStatusBadge } from './PromotionStatusBadge';
-import { getApprovedPublicationResources, getCurrentOwnerName } from './presentation-helpers';
+import {
+  getApprovedPublicationResources,
+  getCurrentOwnerName,
+  getReferenceMaterial,
+} from './presentation-helpers';
 import {
   ApprovalDialog,
   AssignmentDialog,
@@ -323,8 +327,8 @@ function ResourcesSection({
   return (
     <Card>
       <CardHeader
-        title="Creative resources"
-        description="External references and private assets attached to this promotion."
+        title="Creative files"
+        description="Deliverables produced for this promotion, as external links or private uploads."
         action={
           canAttach ? (
             <Button size="sm" onClick={onAdd}>
@@ -398,9 +402,61 @@ function ResourcesSection({
       ) : (
         <EmptyState
           icon={<Link2 className="size-5" />}
-          title="No resources attached"
-          description="Attach a Canva, Drive, Dropbox, or secure private asset before creative submission."
+          title="No creative files yet"
+          description="Attach the finished creative as a Canva, Drive, or Dropbox link, or upload a private asset."
           action={canAttach ? <Button onClick={onAdd}>Attach resource</Button> : undefined}
+        />
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The Resources tab holds inbound reference material — the brief and supporting links
+ * the promotion starts from. Creative deliverables produced for the promotion live in
+ * the Creative tab instead.
+ */
+function ReferenceMaterialSection({ detail }: { detail: PromotionDetail }) {
+  const entries = getReferenceMaterial(detail.metadata);
+  return (
+    <Card>
+      <CardHeader
+        title="Brief and supporting links"
+        description="Reference material this promotion works from. Edit these in the promotion brief."
+      />
+      {entries.length ? (
+        <div className="divide-y divide-[var(--border)]">
+          {entries.map((entry) => (
+            <div
+              key={`${entry.group}:${entry.url}`}
+              className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/5 text-[var(--acid-ink)]">
+                  <Link2 className="size-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold tracking-[0.12em] text-[var(--text-dim)] uppercase">
+                    {entry.group}
+                  </p>
+                  <p className="mt-1 truncate text-sm font-medium text-[var(--text)]">
+                    {entry.url}
+                  </p>
+                </div>
+              </div>
+              <Button asChild variant="secondary" size="sm">
+                <a href={entry.url} target="_blank" rel="noreferrer">
+                  Open <ArrowUpRight className="size-3.5" />
+                </a>
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={<Link2 className="size-5" />}
+          title="No reference material"
+          description="Add a brief link or supporting links to the promotion brief."
         />
       )}
     </Card>
@@ -1397,9 +1453,13 @@ export function PromotionDetailPage() {
     {
       value: 'resources',
       label: 'Resources',
+      count: getReferenceMaterial(detail.metadata).length,
+    },
+    {
+      value: 'creative',
+      label: 'Creative',
       count: detail.resources.filter((item) => !item.archivedAt).length,
     },
-    { value: 'creative', label: 'Creative' },
     { value: 'approval', label: 'Approval', count: detail.submissions.length },
     { value: 'publishing', label: 'Publishing', count: detail.publications.length },
     ...(canViewFinance
@@ -1618,40 +1678,43 @@ export function PromotionDetailPage() {
           <OverviewSection detail={detail} />
         </Tabs.Content>
         <Tabs.Content value="resources" className="mt-6 focus-visible:outline-none">
-          <ResourcesSection
-            detail={detail}
-            canAttach={allowed.includes('ATTACH_RESOURCE')}
-            onAdd={() => setDialog({ type: 'resource' })}
-            onOpenPrivate={openPrivateAsset}
-            openingResourceId={openingResourceId}
-            onArchive={requestArchiveResource}
-            onSubmit={(resourceId) =>
-              run({
-                run: () =>
-                  campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
-                success: 'Creative marked ready for approval.',
-              })
-            }
-          />
+          <ReferenceMaterialSection detail={detail} />
         </Tabs.Content>
         <Tabs.Content value="creative" className="mt-6 focus-visible:outline-none">
-          <CreativeSection
-            detail={detail}
-            onAdd={() => setDialog({ type: 'resource' })}
-            onStart={() =>
-              run({
-                run: () => campaignService.startCreativeWork(promotion.id, promotion.version),
-                success: 'Creative work started.',
-              })
-            }
-            onSubmit={(resourceId) =>
-              run({
-                run: () =>
-                  campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
-                success: 'Creative marked ready for approval.',
-              })
-            }
-          />
+          <div className="space-y-5">
+            <CreativeSection
+              detail={detail}
+              onAdd={() => setDialog({ type: 'resource' })}
+              onStart={() =>
+                run({
+                  run: () => campaignService.startCreativeWork(promotion.id, promotion.version),
+                  success: 'Creative work started.',
+                })
+              }
+              onSubmit={(resourceId) =>
+                run({
+                  run: () =>
+                    campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
+                  success: 'Creative marked ready for approval.',
+                })
+              }
+            />
+            <ResourcesSection
+              detail={detail}
+              canAttach={allowed.includes('ATTACH_RESOURCE')}
+              onAdd={() => setDialog({ type: 'resource' })}
+              onOpenPrivate={openPrivateAsset}
+              openingResourceId={openingResourceId}
+              onArchive={requestArchiveResource}
+              onSubmit={(resourceId) =>
+                run({
+                  run: () =>
+                    campaignService.submitForApproval(promotion.id, resourceId, promotion.version),
+                  success: 'Creative marked ready for approval.',
+                })
+              }
+            />
+          </div>
         </Tabs.Content>
         <Tabs.Content value="approval" className="mt-6 focus-visible:outline-none">
           <ApprovalSection
