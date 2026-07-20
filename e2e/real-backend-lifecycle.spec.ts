@@ -3,14 +3,15 @@ import { readProductionAccounts, type ProductionCredential } from './production-
 
 const production = Boolean(process.env.E2E_PRODUCTION);
 const realBackend = Boolean(process.env.E2E_REAL_BACKEND || production);
-const localCredential = (email: string): ProductionCredential => ({
+const localCredential = (email: string, displayName: string): ProductionCredential => ({
+  displayName,
   email,
   password: 'SentientLocal!2026',
 });
 const localAccounts = {
-  admin: localCredential('esteban@sentientagency.io'),
-  sales: localCredential('sergio@sentientagency.io'),
-  creator: localCredential('santiagoflhi@gmail.com'),
+  admin: localCredential('esteban@sentientagency.io', 'Esteban'),
+  sales: localCredential('sergio@sentientagency.io', 'Sergio'),
+  creator: localCredential('santiagoflhi@gmail.com', 'Santiago'),
 };
 
 test.skip(!realBackend, 'Requires a freshly reset local Supabase stack.');
@@ -32,12 +33,15 @@ async function authenticatedPage(
   return { context, page };
 }
 
-async function selectAssignee(page: Page, label: string, email: string) {
+async function selectAssignee(page: Page, label: string, assignee: ProductionCredential) {
   const select = page.getByRole('combobox', { name: label, exact: true });
-  const option = select.locator('option').filter({ hasText: email });
+  const optionLabel = assignee.displayName;
+  if (!optionLabel) throw new Error(`No display name was configured for ${assignee.email}.`);
+  await expect(select.locator('option').filter({ hasText: assignee.email })).toHaveCount(0);
+  const option = select.locator('option').filter({ hasText: optionLabel });
   await expect(option).toHaveCount(1);
   const value = await option.getAttribute('value');
-  if (!value) throw new Error(`No selectable profile value was found for ${email}.`);
+  if (!value) throw new Error(`No selectable profile value was found for ${optionLabel}.`);
   await select.selectOption(value);
 }
 
@@ -119,7 +123,7 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   const promotionHash = new URL(sales.page.url()).hash;
 
   await sales.page.getByRole('button', { name: 'Assign creator' }).click();
-  await selectAssignee(sales.page, 'Creator', accounts.creator.email);
+  await selectAssignee(sales.page, 'Creator', accounts.creator);
   await sales.page.getByRole('button', { name: 'Assign', exact: true }).click();
   await expect(sales.page.getByText('Creator assigned', { exact: true })).toBeVisible();
 

@@ -1,6 +1,6 @@
 export type ProductionRole = 'admin' | 'sales' | 'creator';
 
-export type ProductionCredential = { email: string; password: string };
+export type ProductionCredential = { displayName?: string; email: string; password: string };
 export type ProductionAccounts = Record<ProductionRole, ProductionCredential>;
 
 const roles: ProductionRole[] = ['admin', 'sales', 'creator'];
@@ -31,11 +31,13 @@ export function readProductionAccounts(): ProductionAccounts {
     }
     const email = (candidate as Record<string, unknown>).email;
     const password = (candidate as Record<string, unknown>).password;
+    const displayName = (candidate as Record<string, unknown>).displayName;
     if (
       typeof email !== 'string' ||
       !/^\S+@\S+\.\S+$/.test(email) ||
       typeof password !== 'string' ||
-      password.length < 10
+      password.length < 10 ||
+      (displayName !== undefined && typeof displayName !== 'string')
     ) {
       throw new Error(`Production E2E credential is invalid for ${role}.`);
     }
@@ -44,7 +46,7 @@ export function readProductionAccounts(): ProductionAccounts {
       throw new Error('Production E2E roles must use distinct accounts.');
     }
     emails.add(normalizedEmail);
-    accounts[role] = { email, password };
+    accounts[role] = { displayName, email, password };
   }
   return accounts;
 }
