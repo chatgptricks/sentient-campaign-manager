@@ -26,23 +26,21 @@ export function ConfigurationPage() {
           in Vite variables.
         </p>
         <dl className="mt-7 grid gap-3 sm:grid-cols-3">
-          {Object.entries(configHealth)
-            .filter(([key]) => key !== 'demoMode')
-            .map(([key, value]) => (
-              <div
-                key={key}
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4"
+          {Object.entries(configHealth).map(([key, value]) => (
+            <div
+              key={key}
+              className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4"
+            >
+              <dt className="text-[10px] font-bold tracking-[0.1em] text-[var(--text-dim)] uppercase">
+                {key.replace(/([A-Z])/g, ' $1')}
+              </dt>
+              <dd
+                className={`mt-2 text-sm font-semibold ${value === 'missing' ? 'text-amber-300' : 'text-[var(--text)]'}`}
               >
-                <dt className="text-[10px] font-bold tracking-[0.1em] text-[var(--text-dim)] uppercase">
-                  {key.replace(/([A-Z])/g, ' $1')}
-                </dt>
-                <dd
-                  className={`mt-2 text-sm font-semibold ${value === 'missing' ? 'text-amber-300' : 'text-[var(--text)]'}`}
-                >
-                  {String(value)}
-                </dd>
-              </div>
-            ))}
+                {String(value)}
+              </dd>
+            </div>
+          ))}
         </dl>
         <div className="relative mt-6 overflow-hidden rounded-lg border border-[var(--border)] bg-black/30">
           <pre className="overflow-x-auto p-5 text-xs leading-6 text-[var(--text-muted)]">

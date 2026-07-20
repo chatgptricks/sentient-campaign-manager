@@ -83,8 +83,6 @@ export function MyWorkPage() {
         'REVISION_REQUESTED',
         'APPROVED',
         'PUBLISHING_IN_PROGRESS',
-        'PUBLISHED',
-        'VERIFICATION_PENDING',
       ].includes(item.status),
   );
   const finance = all.filter((item) => item.status === 'READY_FOR_INVOICING');

@@ -1,19 +1,16 @@
 import type { Promotion, PromotionDetail } from '../../domain/models';
 
+const creatorOwnedStatuses = [
+  'CREATOR_ASSIGNED',
+  'CREATIVE_IN_PROGRESS',
+  'REVISION_REQUESTED',
+  'SUBMITTED_FOR_APPROVAL',
+  'APPROVED',
+  'PUBLISHING_IN_PROGRESS',
+];
+
 export function getCurrentOwnerName(promotion: Promotion) {
-  if (['SUBMITTED_FOR_APPROVAL', 'APPROVED'].includes(promotion.status)) {
-    return promotion.creatorName ?? 'Creator not assigned';
-  }
-  if (
-    ['CREATOR_ASSIGNED', 'CREATIVE_IN_PROGRESS', 'REVISION_REQUESTED'].includes(promotion.status)
-  ) {
-    return promotion.creatorName ?? 'Creator not assigned';
-  }
-  if (
-    ['PUBLISHER_ASSIGNED', 'PUBLISHING_IN_PROGRESS', 'PUBLISHED', 'VERIFICATION_PENDING'].includes(
-      promotion.status,
-    )
-  ) {
+  if (creatorOwnedStatuses.includes(promotion.status)) {
     return promotion.creatorName ?? 'Creator not assigned';
   }
   return promotion.salesOwnerName;

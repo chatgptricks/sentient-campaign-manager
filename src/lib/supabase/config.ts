@@ -5,7 +5,6 @@ export const publicConfig = {
   supabaseUrl: url,
   supabasePublishableKey: publishableKey,
   basePath: import.meta.env.VITE_BASE_PATH?.trim() || '/',
-  demoMode: false,
 };
 
 export const isSupabaseConfigured =
@@ -18,5 +17,4 @@ export const configHealth = {
   supabaseUrl: isSupabaseConfigured ? 'configured' : 'missing',
   publishableKey: isSupabaseConfigured ? 'configured' : 'missing',
   basePath: publicConfig.basePath,
-  demoMode: publicConfig.demoMode,
 } as const;

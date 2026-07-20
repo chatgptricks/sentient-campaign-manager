@@ -102,11 +102,6 @@ export const publicationSchema = z.object({
   publishedAt: z.string().min(1, 'Publication date is required.'),
 });
 
-export const verificationSchema = z.object({
-  status: z.enum(['VERIFIED', 'FAILED', 'UNAVAILABLE']),
-  notes: z.string().trim().max(1000),
-});
-
 export const invoiceSchema = z
   .object({
     amount: z.number().positive('Amount must be greater than zero.'),
@@ -161,7 +156,6 @@ export type PromotionEditInput = z.infer<typeof promotionEditSchema>;
 export type ResourceLinkInput = z.infer<typeof resourceLinkSchema>;
 export type ApprovalDecisionInput = z.infer<typeof approvalDecisionSchema>;
 export type PublicationInput = z.infer<typeof publicationSchema>;
-export type VerificationInput = z.infer<typeof verificationSchema>;
 export type InvoiceInput = z.infer<typeof invoiceSchema>;
 export type IssueInvoiceInput = z.infer<typeof issueInvoiceSchema>;
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;

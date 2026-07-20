@@ -23,7 +23,6 @@ jobs:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH }}
-      VITE_DEMO_MODE: 'false'
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -139,15 +138,40 @@ jobs:
           SQL
 
       - name: Deploy Edge Functions
+        shell: bash
         run: |
-          npx --no-install supabase functions deploy admin-users --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy process-outbox --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy provider-webhook --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy send-notification --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy sync-invoice --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy test-integration --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy validate-resource --project-ref "$SUPABASE_PROJECT_ID"
-          npx --no-install supabase functions deploy verify-publication --project-ref "$SUPABASE_PROJECT_ID"
+          # Bundling pulls public.ecr.aws/supabase/edge-runtime, which rate-limits
+          # ("toomanyrequests: Rate exceeded") independently of our code. Retry with
+          # backoff so a transient registry limit does not fail the release.
+          deploy_function() {
+            local name="$1"
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              if npx --no-install supabase functions deploy "$name" --project-ref "$SUPABASE_PROJECT_ID"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "::error::Failed to deploy Edge Function '$name' after $attempt attempts."
+                return 1
+              fi
+              local delay=$((attempt * 30))
+              echo "::warning::Deploy of '$name' failed (attempt $attempt). Retrying in ${delay}s."
+              sleep "$delay"
+            done
+          }
+
+          for fn in \
+            admin-users \
+            process-outbox \
+            provider-webhook \
+            send-notification \
+            sync-invoice \
+            test-integration \
+            validate-resource \
+            verify-publication
+          do
+            deploy_function "$fn"
+          done
 
       - name: Configure hosted Auth URLs
         shell: bash
@@ -172,7 +196,6 @@ jobs:
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH }}
-      VITE_DEMO_MODE: 'false'
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

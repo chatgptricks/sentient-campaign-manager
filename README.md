@@ -13,7 +13,7 @@ The complete internal workflow is implemented. External creative providers, publ
 - In-app notifications, an atomic outbox worker, retries, dead-letter recovery, and an Admin operations console.
 - HMAC-authenticated provider webhooks with timestamp and duplicate-event protection.
 - Database-backed, hashed-client rate limits on public Edge entry points.
-- Unit/component, Edge Function, pgTAP database, demo Playwright, and real role-based Playwright suites.
+- Unit/component, Edge Function, pgTAP database, and real role-based Playwright suites.
 - CI and an ordered production workflow: verify, migrate, provision secrets, deploy functions, observe Cron, then publish Pages.
 
 ## Stack
@@ -22,22 +22,6 @@ The complete internal workflow is implemented. External creative providers, publ
 - Radix UI, TanStack Query/Table, React Hook Form, and Zod.
 - Supabase Auth, PostgreSQL, RLS, Storage, RPC, Vault, `pg_cron`, `pg_net`, and Edge Functions.
 - Vitest, React Testing Library, pgTAP, Playwright, and GitHub Actions.
-
-## Quick preview without Supabase
-
-Demo mode is an explicit local preview with in-memory sample data. It is never enabled by the production workflow.
-
-```bash
-npm ci
-VITE_DEMO_MODE=true VITE_BASE_PATH=/ npm run dev
-```
-
-To exercise the demo production bundle:
-
-```bash
-VITE_DEMO_MODE=true VITE_BASE_PATH=/ npm run build
-VITE_DEMO_MODE=true VITE_BASE_PATH=/ npm run test:e2e
-```
 
 ## Full local environment
 
@@ -89,7 +73,7 @@ The reset seed creates deterministic local accounts. Every account uses password
 | `npm run test:coverage`  | Write the unit coverage report                                |
 | `npm run test:db`        | Run pgTAP against local Supabase                              |
 | `npm run test:functions` | Run Edge Function and adapter tests                           |
-| `npm run test:e2e`       | Run demo or real-backend Playwright according to environment  |
+| `npm run test:e2e`       | Run the real-backend Playwright suite                         |
 | `npm run supabase:start` | Start local Supabase                                          |
 | `npm run supabase:reset` | Rebuild the database from migrations and seed                 |
 | `npm run supabase:types` | Regenerate local Supabase TypeScript definitions              |
@@ -231,7 +215,7 @@ src/                  React application, domain model, feature UI, and data serv
 supabase/migrations/  Schema, RLS, transactional commands, Cron, idempotency, and rate limits
 supabase/functions/   Authenticated Edge Functions and explicit adapters
 supabase/tests/       pgTAP security, workflow, outbox, and idempotency tests
-e2e/                  Demo, real role-based, and production smoke Playwright tests
+e2e/                  Real role-based and production smoke Playwright tests
 .github/workflows/    CI and ordered Supabase -> Pages release workflow
 ```
 

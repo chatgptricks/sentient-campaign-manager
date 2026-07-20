@@ -43,7 +43,7 @@ export function FinancePage() {
       <PageHeader
         eyebrow="Sales workspace"
         title="Sales"
-        description="Invoice and payment milestones for verified promotions."
+        description="Invoice and payment milestones for posted promotions."
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card>

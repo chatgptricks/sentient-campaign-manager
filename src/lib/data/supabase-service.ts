@@ -26,7 +26,6 @@ import type {
   PromotionInput,
   PublicationInput,
   ResourceLinkInput,
-  VerificationInput,
   CampaignMetadataInput,
 } from '../validation/schemas';
 import type { AssignmentRole, CampaignService, ListPromotionsInput } from './service';
@@ -884,32 +883,6 @@ export const supabaseCampaignService: CampaignService = {
         artifact_resource_link_id: input.artifactResourceLinkId,
         published_at: new Date(input.publishedAt).toISOString(),
       },
-      expected_version: version,
-    });
-  },
-
-  async requestVerification(publicationId: string, version: number) {
-    await callRpc('request_publication_verification', {
-      publication_id: publicationId,
-      expected_version: version,
-    });
-  },
-
-  async recordVerification(publicationId: string, input: VerificationInput, version: number) {
-    await callRpc('record_publication_verification', {
-      publication_id: publicationId,
-      input: {
-        status: input.status,
-        verification_method: 'MANUAL',
-        details_json: { notes: input.notes },
-      },
-      expected_version: version,
-    });
-  },
-
-  async completeVerifiedWorkflow(id: string, version: number) {
-    await callRpc('complete_verified_workflow', {
-      promotion_id: id,
       expected_version: version,
     });
   },

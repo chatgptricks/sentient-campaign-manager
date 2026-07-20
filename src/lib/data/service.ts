@@ -20,7 +20,6 @@ import type {
   PromotionInput,
   PublicationInput,
   ResourceLinkInput,
-  VerificationInput,
 } from '../validation/schemas';
 
 export type AssignmentRole = 'SALES_OWNER' | 'CREATOR';
@@ -80,13 +79,6 @@ export interface CampaignService {
   ): Promise<void>;
   startPublishing(id: string, version: number): Promise<void>;
   recordPublication(id: string, input: PublicationInput, version: number): Promise<void>;
-  requestVerification(publicationId: string, version: number): Promise<void>;
-  recordVerification(
-    publicationId: string,
-    input: VerificationInput,
-    version: number,
-  ): Promise<void>;
-  completeVerifiedWorkflow(id: string, version: number): Promise<void>;
   createInvoice(id: string, input: InvoiceInput, version: number): Promise<void>;
   setInvoiceStatus(
     invoiceId: string,

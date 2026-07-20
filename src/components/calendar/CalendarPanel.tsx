@@ -48,8 +48,6 @@ interface CalendarWorkspaceProps {
   views: CalendarViewDefinition[];
 }
 
-// Removed custom ContextMenuState
-
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function eventDate(value: string) {

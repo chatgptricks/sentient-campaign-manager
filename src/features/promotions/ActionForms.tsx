@@ -24,14 +24,12 @@ import {
   publicationSchema,
   promotionEditSchema,
   resourceLinkSchema,
-  verificationSchema,
   type ApprovalDecisionInput,
   type InvoiceInput,
   type IssueInvoiceInput,
   type PublicationInput,
   type PromotionEditInput,
   type ResourceLinkInput,
-  type VerificationInput,
 } from '../../lib/validation/schemas';
 import type { z } from 'zod';
 import { Button } from '../../components/ui/Button';
@@ -622,57 +620,6 @@ export function PublicationDialog({
           </Button>
           <Button type="submit" disabled={props.pending}>
             {props.pending ? 'Recording…' : 'Record publication'}
-          </Button>
-        </div>
-      </form>
-    </Dialog>
-  );
-}
-
-export function VerificationDialog({
-  onSubmit,
-  ...props
-}: ControlledDialogProps & { onSubmit(input: VerificationInput): void }) {
-  const form = useForm<VerificationInput>({
-    resolver: zodResolver(verificationSchema),
-    defaultValues: { status: 'VERIFIED', notes: '' },
-  });
-  return (
-    <Dialog
-      open={props.open}
-      onOpenChange={props.onOpenChange}
-      title="Record manual verification"
-      description="Confirm the live publication evidence. Failed attempts remain in history and can be retried."
-    >
-      <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
-        <Field
-          label="Verification result"
-          htmlFor="verification-status"
-          error={form.formState.errors.status?.message}
-        >
-          <Select id="verification-status" {...form.register('status')}>
-            <option value="VERIFIED">Verified</option>
-            <option value="FAILED">Failed</option>
-            <option value="UNAVAILABLE">Unavailable</option>
-          </Select>
-        </Field>
-        <Field
-          label="Evidence notes"
-          htmlFor="verification-notes"
-          error={form.formState.errors.notes?.message}
-        >
-          <Textarea
-            id="verification-notes"
-            placeholder="What was checked, and what was visible?"
-            {...form.register('notes')}
-          />
-        </Field>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={props.pending}>
-            {props.pending ? 'Recording…' : 'Record verification'}
           </Button>
         </div>
       </form>

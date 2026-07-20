@@ -428,7 +428,7 @@ export function CreativeSection({
       <Card>
         <CardHeader
           title="Creative production"
-          description="The assigned creator owns production, approval, publication, and verification."
+          description="The assigned creator owns production, approval, and posting."
         />
         <CardBody>
           <div className="flex flex-col gap-5 rounded-lg border border-[var(--border)] bg-black/10 p-5 sm:flex-row sm:items-center sm:justify-between">

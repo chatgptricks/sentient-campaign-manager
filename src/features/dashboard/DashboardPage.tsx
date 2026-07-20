@@ -68,7 +68,7 @@ export function DashboardPage() {
     ['SUBMITTED_FOR_APPROVAL'].includes(promotion.status),
   ).length;
   const readyToPublish = query.data.promotions.filter((promotion) =>
-    ['APPROVED', 'PUBLISHER_ASSIGNED'].includes(promotion.status),
+    ['APPROVED'].includes(promotion.status),
   ).length;
   const publishing = query.data.promotions.filter((promotion) =>
     ['PUBLISHING_IN_PROGRESS'].includes(promotion.status),
@@ -277,7 +277,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader
             title="Requires attention"
-            description="Approvals, revisions, verification, and sales handoffs."
+            description="Approvals, revisions, and sales handoffs."
             action={
               <Button asChild variant="ghost" size="sm">
                 <Link to="/my-work">

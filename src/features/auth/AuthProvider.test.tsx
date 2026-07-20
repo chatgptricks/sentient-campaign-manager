@@ -10,7 +10,6 @@ vi.mock('../../lib/supabase/config', () => ({
   isSupabaseConfigured: false,
   publicConfig: {
     basePath: '/sentient-campaign-manager/',
-    demoMode: false,
     supabasePublishableKey: '',
     supabaseUrl: '',
   },
