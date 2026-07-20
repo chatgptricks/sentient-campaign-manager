@@ -8,6 +8,15 @@ updates:
       time: '09:00'
       timezone: America/Costa_Rica
     open-pull-requests-limit: 10
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     labels:
       - dependencies
 
@@ -19,6 +28,15 @@ updates:
       time: '09:15'
       timezone: America/Costa_Rica
     open-pull-requests-limit: 5
+    groups:
+      github-actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     labels:
       - dependencies
       - github-actions
