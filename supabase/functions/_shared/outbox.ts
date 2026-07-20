@@ -35,6 +35,48 @@ function requiredPayloadId(event: OutboxEvent, snakeCase: string, camelCase: str
   return value;
 }
 
+const ASSIGNMENT_EVENTS = ['CreatorAssigned', 'ApproverAssigned', 'PublisherAssigned'];
+
+/**
+ * The tracking channel is an audit log, so its line stays terse and impersonal: what
+ * happened, to which promotion. Names and calls to action belong in the DM instead.
+ */
+export function buildSlackAuditLine(subject: string, titleLink: string): string {
+  return `${subject} · ${titleLink}`;
+}
+
+/**
+ * A DM has exactly one reader, so it addresses them directly and says what it means for
+ * them. Assignments are phrased as "to your tasks" rather than naming the assignee, who
+ * is the person reading it.
+ */
+export function buildSlackDirectMessage(input: {
+  actorMention: string;
+  body: string;
+  eventType: string;
+  mention: string;
+  titleLink: string;
+}): string {
+  if (ASSIGNMENT_EVENTS.includes(input.eventType)) {
+    return `Hey ${input.mention}, ${input.actorMention} just assigned ${input.titleLink} to your tasks.`;
+  }
+  return `Hey ${input.mention}, ${input.body}`;
+}
+
+/**
+ * Assignment payloads have used several spellings for the assignee. The pre-simplification
+ * command emitted `assignedUserId`; 20260720000500_simplify_promotion_workflow emits `userId`.
+ * Reading all of them keeps already-queued events deliverable and stops a future rename from
+ * silently dropping every assignment notification.
+ */
+function assignedUserIdFrom(payload: Record<string, unknown>): string | undefined {
+  for (const key of ['assignedUserId', 'assigned_user_id', 'userId', 'user_id']) {
+    const value = payload[key];
+    if (typeof value === 'string' && value) return value;
+  }
+  return undefined;
+}
+
 async function createPayloadNotification(
   client: DatabaseClient,
   event: OutboxEvent,
@@ -44,11 +86,8 @@ async function createPayloadNotification(
   const recipients = new Set<string>();
   const explicitRecipient = payload.recipient_user_id ?? payload.recipientUserId;
   if (typeof explicitRecipient === 'string') recipients.add(explicitRecipient);
-  const assignedRecipient = payload.assignedUserId ?? payload.assigned_user_id;
-  if (
-    ['CreatorAssigned', 'ApproverAssigned', 'PublisherAssigned'].includes(event.event_type) &&
-    typeof assignedRecipient === 'string'
-  ) {
+  const assignedRecipient = assignedUserIdFrom(payload);
+  if (ASSIGNMENT_EVENTS.includes(event.event_type) && assignedRecipient) {
     recipients.add(assignedRecipient);
   }
 
@@ -133,26 +172,31 @@ async function createPayloadNotification(
   }
 
   let actorName = 'Someone';
+  let actorMention = 'Someone';
   const actorId = payload.actor_id ?? payload.actorId;
   if (typeof actorId === 'string') {
     const { data: actorProfile } = await client
       .from('profiles')
-      .select('display_name')
+      .select('display_name, slack_user_id')
       .eq('id', actorId)
       .maybeSingle();
     if (actorProfile?.display_name) actorName = actorProfile.display_name;
+    actorMention = actorProfile?.slack_user_id
+      ? `<@${actorProfile.slack_user_id}>`
+      : (actorProfile?.display_name ?? actorName);
   }
+
+  const titleLink = promoUrl ? `<${promoUrl}|*${promotionTitle}*>` : `*${promotionTitle}*`;
 
   let body = typeof payload.body === 'string' ? payload.body : '';
   if (!body) {
-    const titleLink = promoUrl ? `<${promoUrl}|*${promotionTitle}*>` : `*${promotionTitle}*`;
     switch (event.event_type) {
       case 'CreatorAssigned':
       case 'ApproverAssigned':
       case 'PublisherAssigned': {
-        const assignedId = payload.assignedUserId ?? payload.assigned_user_id;
+        const assignedId = assignedUserIdFrom(payload);
         let assigneeTag = 'someone';
-        if (typeof assignedId === 'string') {
+        if (assignedId) {
           const { data: assigneeProfile } = await client
             .from('profiles')
             .select('display_name, slack_user_id')
@@ -210,6 +254,17 @@ async function createPayloadNotification(
     typeof payload.subject === 'string'
       ? payload.subject
       : event.event_type.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+  const auditLine = buildSlackAuditLine(subject, titleLink);
+  const directMessageFor = (mention: string) =>
+    buildSlackDirectMessage({
+      actorMention,
+      body,
+      eventType: event.event_type,
+      mention,
+      titleLink,
+    });
+
   const notificationType = `${event.event_type}:${event.id}`;
   const notificationIds: string[] = [];
 
@@ -246,14 +301,21 @@ async function createPayloadNotification(
     notificationIds.push(data.id);
   }
 
-  const slack = await dispatchSlackForEvent(client, event, [...recipients], body, subject);
+  const slack = await dispatchSlackForEvent(client, event, [...recipients], {
+    auditLine,
+    directMessageFor,
+    subject,
+  });
   return { handled: true, notificationIds, slack };
 }
 
 /**
- * Delivers one Slack activity line per event to the tracking channel, plus a DM per
- * recipient who has a Slack user ID. The channel post is deliberately outside the
- * recipient loop: fanning it out per recipient posted N identical copies.
+ * Delivers one terse audit line per event to the tracking channel, plus a personal DM to
+ * each recipient who has a Slack user ID. The two use different copy on purpose: the
+ * channel is an impersonal log, the DM tells one person what changed for them.
+ *
+ * The channel post is deliberately outside the recipient loop: fanning it out per
+ * recipient posted N identical copies.
  *
  * Failures are recorded as integration attempts so they surface in Admin > Operations
  * instead of vanishing into function logs.
@@ -262,9 +324,13 @@ async function dispatchSlackForEvent(
   client: DatabaseClient,
   event: OutboxEvent,
   recipients: string[],
-  body: string,
-  subject: string,
+  message: {
+    auditLine: string;
+    directMessageFor(mention: string): string;
+    subject: string;
+  },
 ): Promise<Record<string, unknown>> {
+  const { auditLine, directMessageFor, subject } = message;
   const promotionId = event.aggregate_type === 'Promotion' ? event.aggregate_id : null;
   const adapter = new SlackNotificationAdapter();
   if (!adapter.configured) {
@@ -307,7 +373,7 @@ async function dispatchSlackForEvent(
 
   const channelKey = `outbox:${event.id}:slack:channel`;
   const channelPosted = await attempt('SLACK_CHANNEL_POST', channelKey, () =>
-    adapter.postToChannel(body, channelKey),
+    adapter.postToChannel(auditLine, channelKey),
   );
 
   let directMessages = 0;
@@ -321,7 +387,7 @@ async function dispatchSlackForEvent(
     if (!slackUserId) continue;
     const key = `outbox:${event.id}:slack:dm:${userId}`;
     const sent = await attempt('SLACK_DIRECT_MESSAGE', key, () =>
-      adapter.sendDirectMessage(slackUserId, body, key),
+      adapter.sendDirectMessage(slackUserId, directMessageFor(`<@${slackUserId}>`), key),
     );
     if (sent) directMessages += 1;
   }

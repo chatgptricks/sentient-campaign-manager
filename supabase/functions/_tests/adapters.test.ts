@@ -6,6 +6,7 @@ import {
   SlackNotificationAdapter,
 } from '../_shared/adapters/notification.ts';
 import { ManualPublishingAdapter } from '../_shared/adapters/publishing.ts';
+import { buildSlackAuditLine, buildSlackDirectMessage } from '../_shared/outbox.ts';
 import type { DatabaseClient } from '../_shared/database.ts';
 import { testIntegrationConnection } from '../_shared/services/integration-test.ts';
 
@@ -66,6 +67,45 @@ describe('truthful manual adapters', () => {
     });
     expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(ids[0]).toBe(ids[1]);
+  });
+
+  it('keeps the tracking-channel audit line short and impersonal', () => {
+    const line = buildSlackAuditLine(
+      'Creator Assigned',
+      '<https://app.example/#/promotions/1|*Summer rooftop launch*>',
+    );
+
+    expect(line).toBe(
+      'Creator Assigned · <https://app.example/#/promotions/1|*Summer rooftop launch*>',
+    );
+    expect(line).not.toContain('<@');
+    expect(line).not.toMatch(/Hey /);
+  });
+
+  it('addresses an assignment DM to the reader and links the promotion', () => {
+    const dm = buildSlackDirectMessage({
+      actorMention: '<@USERGIO>',
+      body: 'Sergio assigned *Summer rooftop launch* to <@UESTEBAN>.',
+      eventType: 'CreatorAssigned',
+      mention: '<@UESTEBAN>',
+      titleLink: '<https://app.example/#/promotions/1|*Summer rooftop launch*>',
+    });
+
+    expect(dm).toBe(
+      'Hey <@UESTEBAN>, <@USERGIO> just assigned <https://app.example/#/promotions/1|*Summer rooftop launch*> to your tasks.',
+    );
+  });
+
+  it('greets the reader for non-assignment events without repeating their name', () => {
+    const dm = buildSlackDirectMessage({
+      actorMention: '<@USERGIO>',
+      body: 'Sergio submitted *Summer rooftop launch* for approval.',
+      eventType: 'ApprovalSubmitted',
+      mention: '<@UESTEBAN>',
+      titleLink: '<https://app.example/#/promotions/1|*Summer rooftop launch*>',
+    });
+
+    expect(dm).toBe('Hey <@UESTEBAN>, Sergio submitted *Summer rooftop launch* for approval.');
   });
 
   it('falls back to the default tracking channel when SLACK_CHANNEL_ID is unset', async () => {
