@@ -39,18 +39,22 @@ describe('workflow form validation', () => {
     );
   });
 
-  it('accepts HTTPS evidence and rejects unsafe schemes', () => {
+  it('accepts any http or https link and rejects unsafe schemes', () => {
     const resource = {
-      provider: 'CANVA',
+      provider: 'OTHER',
       resourceType: 'SOCIAL_CREATIVE',
       displayName: 'Master creative',
     } as const;
-    expect(
-      resourceLinkSchema.safeParse({ ...resource, url: 'https://canva.com/design/123' }).success,
-    ).toBe(true);
-    expect(
-      resourceLinkSchema.safeParse({ ...resource, url: 'http://internal.local/asset' }).success,
-    ).toBe(false);
+    for (const url of [
+      'https://canva.com/design/123',
+      'http://internal.local/asset',
+      'https://any-domain.example/path?q=1',
+    ]) {
+      expect(resourceLinkSchema.safeParse({ ...resource, url }).success).toBe(true);
+    }
+    for (const url of ['javascript:alert(1)', 'data:text/html,x', 'not a url', 'ftp://x/y']) {
+      expect(resourceLinkSchema.safeParse({ ...resource, url }).success).toBe(false);
+    }
   });
 
   it('rejects publication and invoice records that violate money or URL rules', () => {

@@ -6,7 +6,29 @@ import type {
 } from './contracts.ts';
 import { getEnv } from '../env.ts';
 import { HttpError } from '../errors.ts';
-import { safeHeadRequest, validateSafeExternalUrl, type DnsResolver } from '../ssrf.ts';
+import type { DnsResolver } from '../ssrf.ts';
+
+/**
+ * External creative links accept any http/https URL with no provider or domain check.
+ * We never fetch them, so there is no SSRF surface; we only confirm the URL parses and
+ * uses a safe scheme (javascript:/data: would be dangerous when rendered as a link).
+ */
+function validateExternalUrl(input: string): URL {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    throw new HttpError(400, 'RESOURCE_URL_INVALID', 'Resource URL is not a valid link.');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new HttpError(
+      400,
+      'RESOURCE_URL_INVALID',
+      'Resource URL must start with http:// or https://.',
+    );
+  }
+  return url;
+}
 
 function validateStorageUrl(input: string, reference: ResourceReference): URL {
   const configuredUrl = getEnv('SUPABASE_URL');
@@ -81,75 +103,35 @@ function validateStorageUrl(input: string, reference: ResourceReference): URL {
 }
 
 export class ManualCreativeResourceAdapter implements CreativeResourceAdapter {
-  constructor(
-    private readonly dependencies: {
-      fetcher?: typeof fetch;
-      resolveDns?: DnsResolver;
-    } = {},
-  ) {}
+  // fetcher/resolveDns are accepted for backward compatibility with existing callers and
+  // tests, but external links are never fetched, so they are intentionally unused.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_dependencies: { fetcher?: typeof fetch; resolveDns?: DnsResolver } = {}) {}
 
   async validate(reference: ResourceReference): Promise<ResourceValidationResult> {
     const url =
       reference.provider === 'SUPABASE_STORAGE'
         ? validateStorageUrl(reference.url, reference)
-        : await validateSafeExternalUrl(reference.url, {
-            provider: reference.provider,
-            resolveDns: this.dependencies.resolveDns,
-          });
+        : validateExternalUrl(reference.url);
 
-    if (reference.provider === 'OTHER' || reference.provider === 'SUPABASE_STORAGE') {
-      return {
-        availability: 'NOT_CHECKED',
-        message:
-          reference.provider === 'OTHER'
-            ? 'URL format and public DNS are valid. Availability was not fetched for an untrusted custom provider.'
-            : 'Storage URL format is valid. Availability remains governed by private Storage access controls.',
-        metadata: { host: url.hostname, networkRequestPerformed: false },
-        status: 'VALID',
-      };
-    }
-
-    try {
-      const result = await safeHeadRequest(url.toString(), {
-        fetcher: this.dependencies.fetcher,
-        provider: reference.provider,
-        resolveDns: this.dependencies.resolveDns,
-      });
-      if (!result.available) {
-        return {
-          availability: 'UNAVAILABLE',
-          message: `Provider returned HTTP ${result.status}.`,
-          metadata: { host: new URL(result.finalUrl).hostname, httpStatus: result.status },
-          status: 'UNAVAILABLE',
-        };
-      }
-      return {
-        availability: 'AVAILABLE',
-        message: 'URL format, provider host, DNS, and availability check passed.',
-        metadata: { host: new URL(result.finalUrl).hostname, httpStatus: result.status },
-        status: 'VALID',
-      };
-    } catch (error) {
-      if (error instanceof HttpError) {
-        return {
-          availability: 'UNAVAILABLE',
-          message: `Availability check stopped safely: ${error.message}`,
-          metadata: { host: url.hostname },
-          status: 'UNAVAILABLE',
-        };
-      }
-      throw error;
-    }
+    // Every external link is accepted as-is and never fetched, regardless of provider.
+    // Private Storage objects keep their own scoped access controls.
+    return {
+      availability: 'NOT_CHECKED',
+      message:
+        reference.provider === 'SUPABASE_STORAGE'
+          ? 'Storage URL format is valid. Availability remains governed by private Storage access controls.'
+          : 'Link accepted. Availability is not checked for external links.',
+      metadata: { host: url.hostname, networkRequestPerformed: false },
+      status: 'VALID',
+    };
   }
 
   async getMetadata(reference: ResourceReference): Promise<ResourceMetadata> {
     const url =
       reference.provider === 'SUPABASE_STORAGE'
         ? validateStorageUrl(reference.url, reference)
-        : await validateSafeExternalUrl(reference.url, {
-            provider: reference.provider,
-            resolveDns: this.dependencies.resolveDns,
-          });
+        : validateExternalUrl(reference.url);
     return { host: url.hostname, provider: reference.provider };
   }
 }

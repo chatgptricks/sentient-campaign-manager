@@ -38,17 +38,39 @@ describe('SSRF-safe resource validation', () => {
     ).rejects.toMatchObject<HttpError>({ code: 'RESOURCE_PROVIDER_MISMATCH' });
   });
 
-  it('validates custom URLs without fetching untrusted hosts', async () => {
+  it('accepts any external link without fetching it, regardless of provider', async () => {
     const fetcher = vi.fn();
     const adapter = new ManualCreativeResourceAdapter({ fetcher, resolveDns: publicDns });
-    const result = await adapter.validate({
-      displayName: 'Brief',
+    for (const provider of ['OTHER', 'CANVA', 'GOOGLE_DRIVE', 'DROPBOX'] as const) {
+      const result = await adapter.validate({
+        displayName: 'Link',
+        provider,
+        resourceType: 'creative',
+        url: 'https://anything.example/whatever',
+      });
+      expect(result).toMatchObject({ availability: 'NOT_CHECKED', status: 'VALID' });
+    }
+    // http is accepted too, and nothing is ever fetched.
+    const httpResult = await adapter.validate({
+      displayName: 'Link',
       provider: 'OTHER',
-      resourceType: 'brief',
-      url: 'https://example.com/brief',
+      resourceType: 'creative',
+      url: 'http://anything.example/whatever',
     });
-    expect(result).toMatchObject({ availability: 'NOT_CHECKED', status: 'VALID' });
+    expect(httpResult).toMatchObject({ availability: 'NOT_CHECKED', status: 'VALID' });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('rejects a link with a dangerous scheme', async () => {
+    const adapter = new ManualCreativeResourceAdapter();
+    await expect(
+      adapter.validate({
+        displayName: 'Link',
+        provider: 'OTHER',
+        resourceType: 'creative',
+        url: 'javascript:alert(1)',
+      }),
+    ).rejects.toMatchObject<HttpError>({ code: 'RESOURCE_URL_INVALID' });
   });
 
   it('accepts a local Storage URL only for the configured Supabase origin', async () => {
@@ -112,22 +134,6 @@ describe('SSRF-safe resource validation', () => {
     } finally {
       vi.unstubAllEnvs();
     }
-  });
-
-  it('performs a bounded HEAD check for an allowlisted provider', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 403 }));
-    const adapter = new ManualCreativeResourceAdapter({ fetcher, resolveDns: publicDns });
-    const result = await adapter.validate({
-      displayName: 'Design',
-      provider: 'CANVA',
-      resourceType: 'creative',
-      url: 'https://www.canva.com/design/abc',
-    });
-    expect(result).toMatchObject({ availability: 'AVAILABLE', status: 'VALID' });
-    expect(fetcher).toHaveBeenCalledWith(
-      expect.any(URL),
-      expect.objectContaining({ method: 'HEAD', redirect: 'manual' }),
-    );
   });
 
   it('does not follow provider redirects to an arbitrary host', async () => {

@@ -2,6 +2,27 @@ import { z } from 'zod';
 
 import { publishingChannels } from '../../domain/channels';
 
+/**
+ * Any link field accepts any http or https URL with no provider or domain restriction.
+ * We keep it to http/https on purpose: these values are rendered as clickable anchors, so
+ * schemes like javascript: or data: would be an XSS vector. That is a safety floor, not a
+ * provider check.
+ */
+export const anyLink = z
+  .string()
+  .trim()
+  .refine((value) => {
+    try {
+      const { protocol } = new URL(value);
+      return protocol === 'http:' || protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, 'Enter a link starting with http:// or https://.');
+
+/** An optional link field: an empty string clears it, otherwise any http/https URL. */
+export const optionalLink = z.union([z.literal(''), anyLink]);
+
 export const loginSchema = z.object({
   email: z.email('Enter a valid email address.'),
   password: z.string(),
@@ -36,12 +57,7 @@ export const campaignMetadataSchema = z.object({
       'Choose a valid scheduled date.',
     ),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
-  briefUrl: z.union([
-    z.literal(''),
-    z
-      .url('Enter a valid brief URL.')
-      .refine((value) => value.startsWith('https://'), 'Only HTTPS links are allowed.'),
-  ]),
+  briefUrl: optionalLink,
   clientMaterialLinks: z.string().trim().max(4000),
   externalResourceLinks: z.string().trim().max(4000),
   platforms: z.array(z.enum(publishingChannels)).min(1, 'Choose at least one channel.'),
@@ -70,9 +86,7 @@ export const resourceLinkSchema = z.object({
   provider: z.enum(['CANVA', 'GOOGLE_DRIVE', 'DROPBOX', 'OTHER']),
   resourceType: z.string().trim().min(2, 'Describe the resource type.').max(80),
   displayName: z.string().trim().min(2, 'Display name is required.').max(160),
-  url: z
-    .url('Enter a valid URL.')
-    .refine((value) => value.startsWith('https://'), 'Only HTTPS links are allowed.'),
+  url: anyLink,
 });
 
 export const approvalDecisionSchema = z
@@ -94,9 +108,7 @@ export const publicationSchema = z.object({
   publishingAccountId: z.union([z.literal(''), z.uuid()]).optional(),
   provider: z.enum(publishingChannels),
   destination: z.string().trim().min(2, 'Destination is required.').max(120),
-  publicationUrl: z
-    .url('Enter a valid publication URL.')
-    .refine((value) => value.startsWith('https://'), 'Only HTTPS links are allowed.'),
+  publicationUrl: anyLink,
   externalPublicationId: z.string().trim().max(160),
   artifactResourceLinkId: z.uuid('Choose the approved artifact.'),
   publishedAt: z.string().min(1, 'Publication date is required.'),
