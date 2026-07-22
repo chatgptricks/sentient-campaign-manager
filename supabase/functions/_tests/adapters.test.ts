@@ -83,6 +83,17 @@ describe('truthful manual adapters', () => {
     expect(line).not.toContain('<@');
   });
 
+  it('phrases an approver assignment as a review request', () => {
+    expect(
+      describeOutboxEvent({
+        actor: 'Sergio',
+        assignee: 'Esteban',
+        eventType: 'ApproverAssigned',
+        titleLink,
+      }),
+    ).toBe(`Sergio asked Esteban to review ${titleLink}.`);
+  });
+
   it('names the actor for workflow steps that have no assignee', () => {
     expect(
       describeOutboxEvent({

@@ -173,6 +173,7 @@ function OverviewSection({ detail }: { detail: PromotionDetail }) {
   const assignments = [
     { label: 'Promotion owner', name: promotion.salesOwnerName },
     { label: 'Creator', name: promotion.creatorName },
+    { label: 'Approver', name: promotion.approverName },
   ];
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,.6fr)]">
@@ -1519,6 +1520,15 @@ export function PromotionDetailPage() {
             >
               <UserRound className="size-4" />
               Assign creator
+            </ActionButton>
+            <ActionButton
+              action="ASSIGN_APPROVER"
+              allowed={allowed}
+              variant="secondary"
+              onClick={() => setDialog({ type: 'assign', role: 'APPROVER' })}
+            >
+              <ClipboardCheck className="size-4" />
+              {promotion.approverName ? 'Reassign approver' : 'Assign approver'}
             </ActionButton>
             <ActionButton
               action="START_CREATIVE_WORK"

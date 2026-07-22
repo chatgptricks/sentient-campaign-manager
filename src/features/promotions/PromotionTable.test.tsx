@@ -16,6 +16,8 @@ const promotion: Promotion = {
   salesOwnerName: 'Maya Chen',
   creatorId: null,
   creatorName: null,
+  approverId: null,
+  approverName: null,
   dueDate: '2026-08-01',
   version: 1,
   createdAt: '2026-07-18T12:00:00.000Z',

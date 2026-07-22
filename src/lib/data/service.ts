@@ -22,7 +22,7 @@ import type {
   ResourceLinkInput,
 } from '../validation/schemas';
 
-export type AssignmentRole = 'SALES_OWNER' | 'CREATOR';
+export type AssignmentRole = 'SALES_OWNER' | 'CREATOR' | 'APPROVER';
 
 export interface ListPromotionsInput {
   search?: string;

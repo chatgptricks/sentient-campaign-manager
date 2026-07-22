@@ -50,8 +50,9 @@ export function describeOutboxEvent(input: {
 }): string {
   const { actor, assignee, eventType, titleLink } = input;
   switch (eventType) {
-    case 'CreatorAssigned':
     case 'ApproverAssigned':
+      return `${actor} asked ${assignee} to review ${titleLink}.`;
+    case 'CreatorAssigned':
     case 'PublisherAssigned':
       return `${actor} assigned ${titleLink} to ${assignee}.`;
     case 'CreativeWorkStarted':
@@ -243,6 +244,25 @@ async function createPayloadNotification(
   const describe = (actor: string, assignee: string) =>
     describeOutboxEvent({ actor, assignee, eventType: event.event_type, titleLink });
 
+  // When an approver is asked to review, include the most recent creative link so the DM
+  // is self-contained. Only the newest non-archived resource is used.
+  let creativeLink: string | undefined;
+  if (event.event_type === 'ApproverAssigned' && promotionId) {
+    const { data: latestResource } = await client
+      .from('promotion_resource_links')
+      .select('url, display_name')
+      .eq('promotion_id', promotionId)
+      .is('archived_at', null)
+      .order('attached_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestResource?.url) {
+      creativeLink = latestResource.display_name
+        ? `<${latestResource.url}|${latestResource.display_name}>`
+        : latestResource.url;
+    }
+  }
+
   // Plain display names, never Slack mentions: this text is reused for the in-app
   // notification and for the audit channel, where a mention would ping the person.
   const body =
@@ -258,13 +278,18 @@ async function createPayloadNotification(
   // Audit channel: who did what to whom, with plain names so nobody gets pinged.
   const auditLine = body;
   // DM: the same event, addressed to the reader, with the other people as mentions.
-  const directMessageFor = (mention: string) =>
-    buildSlackDirectMessage({
+  const directMessageFor = (mention: string) => {
+    if (event.event_type === 'ApproverAssigned') {
+      const base = `Hey ${mention}, ${actorMention} asked you to review ${titleLink}.`;
+      return creativeLink ? `${base} Creative: ${creativeLink}` : base;
+    }
+    return buildSlackDirectMessage({
       description: describe(actorMention, assigneeMention),
       eventType: event.event_type,
       mention,
       recipientAssignment: `${actorMention} just assigned ${titleLink} to your tasks.`,
     });
+  };
 
   const notificationType = `${event.event_type}:${event.id}`;
   const notificationIds: string[] = [];

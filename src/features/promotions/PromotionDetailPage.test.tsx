@@ -151,6 +151,8 @@ describe('creative production actions', () => {
         salesOwnerName: 'Sales',
         creatorId: '30000000-0000-4000-8000-000000000002',
         creatorName: 'Creator',
+        approverId: null,
+        approverName: null,
         dueDate: null,
         version: 3,
         createdAt: '2026-07-18T12:00:00.000Z',

@@ -46,7 +46,7 @@ interface ControlledDialogProps {
 
 const assignmentMeta: Record<
   AssignmentRole,
-  { title: string; description: string; role: RoleCode; label: string }
+  { title: string; description: string; role?: RoleCode; anyRole?: boolean; label: string }
 > = {
   SALES_OWNER: {
     title: 'Assign promotion owner',
@@ -59,6 +59,13 @@ const assignmentMeta: Record<
     description: 'Assigning the creator moves a Draft promotion into production.',
     role: 'CREATOR',
     label: 'Creator',
+  },
+  APPROVER: {
+    title: 'Assign approver',
+    description:
+      'Optional. The approver reviews the submitted creative and can approve or request changes. Any team member can be chosen.',
+    anyRole: true,
+    label: 'Approver',
   },
 };
 
@@ -139,10 +146,15 @@ export function AssignmentDialog({
   const meta = assignmentMeta[role];
   const { profile } = useAuth();
   const query = useQuery({
-    queryKey: ['profiles', profile?.id, meta.role],
+    queryKey: ['profiles', profile?.id, meta.role ?? 'ANY'],
     queryFn: () => campaignService.listProfiles(meta.role),
     enabled: props.open && Boolean(profile),
   });
+  // Approver can be anyone active with at least one role. listProfiles() returns everyone
+  // when no role is passed, so narrow it here.
+  const eligibleProfiles = (query.data ?? []).filter(
+    (candidate) => !meta.anyRole || (candidate.status === 'ACTIVE' && candidate.roles.length > 0),
+  );
   const form = useForm<z.infer<typeof assignmentSchema>>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: { userId: '' },
@@ -164,7 +176,7 @@ export function AssignmentDialog({
             <option value="">
               {query.isLoading ? 'Loading team…' : `Choose ${meta.label.toLowerCase()}`}
             </option>
-            {query.data?.map((profile) => (
+            {eligibleProfiles.map((profile) => (
               <option key={profile.id} value={profile.id}>
                 {profile.displayName}
               </option>

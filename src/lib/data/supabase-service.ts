@@ -90,6 +90,8 @@ function mapPromotion(raw: unknown): Promotion {
     salesOwnerName: relationName(row.sales_owner),
     creatorId: nullableText(row.creator_id),
     creatorName: row.creator_id ? relationName(row.creator) : null,
+    approverId: nullableText(row.approver_id),
+    approverName: row.approver_id ? relationName(row.approver) : null,
     dueDate: nullableText(row.due_date),
     version: numberValue(row.version, 1),
     createdAt: textValue(row.created_at),
@@ -338,7 +340,8 @@ const promotionSelect = `
   *,
   client:clients!promotions_client_id_fkey(name),
   sales_owner:profiles!promotions_sales_owner_id_fkey(display_name),
-  creator:profiles!promotions_creator_id_fkey(display_name)
+  creator:profiles!promotions_creator_id_fkey(display_name),
+  approver:profiles!promotions_approver_id_fkey(display_name)
 `;
 
 export const supabaseCampaignService: CampaignService = {

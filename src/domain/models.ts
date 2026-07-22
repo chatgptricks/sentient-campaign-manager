@@ -33,6 +33,8 @@ export interface Promotion {
   salesOwnerName: string;
   creatorId: string | null;
   creatorName: string | null;
+  approverId: string | null;
+  approverName: string | null;
   dueDate: string | null;
   version: number;
   createdAt: string;
@@ -62,6 +64,7 @@ export type PromotionAction =
   | 'CANCEL_PROMOTION'
   | 'ASSIGN_SALES_OWNER'
   | 'ASSIGN_CREATOR'
+  | 'ASSIGN_APPROVER'
   | 'START_CREATIVE_WORK'
   | 'ATTACH_RESOURCE'
   | 'SUBMIT_FOR_APPROVAL'
