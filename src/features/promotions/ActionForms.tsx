@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import type {
   ApprovalSubmission,
   Promotion,
+  PromotionChannelSheetItem,
   PublishingAccount,
   ResourceLink,
 } from '../../domain/models';
@@ -479,16 +480,24 @@ export function ApprovalDialog({
 export function PublicationDialog({
   accounts,
   initialAccountId,
+  initialSheetItemId,
   resources,
+  sheetItems,
   onSubmit,
   ...props
 }: ControlledDialogProps & {
   accounts?: PublishingAccount[];
   initialAccountId?: string;
+  initialSheetItemId?: string;
   resources: ResourceLink[];
+  sheetItems?: PromotionChannelSheetItem[];
   onSubmit(input: PublicationInput): void;
 }) {
   const accountOptions = useMemo(() => accounts ?? [], [accounts]);
+  const sheetOptions = useMemo(
+    () => (sheetItems ?? []).filter((item) => item.active),
+    [sheetItems],
+  );
   const defaultPublishedAt = useMemo(() => toLocalDateTimeInputValue(new Date()), []);
   const defaultArtifactResourceLinkId = useMemo(
     () => resources.find((item) => !item.archivedAt)?.id ?? '',
@@ -498,6 +507,7 @@ export function PublicationDialog({
     resolver: zodResolver(publicationSchema),
     defaultValues: {
       publishingAccountId: initialAccountId ?? '',
+      promotionChannelSheetItemId: initialSheetItemId ?? '',
       provider: accountOptions[0]?.platform ?? 'INSTAGRAM',
       destination: accountOptions[0]?.handle ?? '',
       publicationUrl: '',
@@ -515,10 +525,13 @@ export function PublicationDialog({
     if (!props.open) return;
     const selected =
       accountOptions.find((account) => account.id === initialAccountId) ?? accountOptions[0];
+    const selectedSheetItem =
+      sheetOptions.find((item) => item.id === initialSheetItemId) ?? sheetOptions[0];
     form.reset({
-      publishingAccountId: selected?.id ?? '',
-      provider: selected?.platform ?? 'INSTAGRAM',
-      destination: selected?.handle ?? '',
+      publishingAccountId: sheetOptions.length ? '' : (selected?.id ?? ''),
+      promotionChannelSheetItemId: selectedSheetItem?.id ?? '',
+      provider: selectedSheetItem?.platform ?? selected?.platform ?? 'INSTAGRAM',
+      destination: selectedSheetItem?.handle ?? selected?.handle ?? '',
       publicationUrl: '',
       externalPublicationId: '',
       artifactResourceLinkId: defaultArtifactResourceLinkId,
@@ -530,10 +543,13 @@ export function PublicationDialog({
     defaultPublishedAt,
     form,
     initialAccountId,
+    initialSheetItemId,
     props.open,
+    sheetOptions,
   ]);
 
   const selectedAccountId = form.watch('publishingAccountId');
+  const selectedSheetItemId = form.watch('promotionChannelSheetItemId');
 
   useEffect(() => {
     const selected = accountOptions.find((account) => account.id === selectedAccountId);
@@ -542,13 +558,35 @@ export function PublicationDialog({
     form.setValue('destination', selected.handle);
   }, [accountOptions, form, selectedAccountId]);
 
+  useEffect(() => {
+    const selected = sheetOptions.find((item) => item.id === selectedSheetItemId);
+    if (!selected) return;
+    form.setValue('provider', selected.platform);
+    form.setValue('destination', selected.handle);
+    form.setValue('publishingAccountId', '');
+  }, [form, selectedSheetItemId, sheetOptions]);
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange} title="Record publication">
       <form className="grid gap-5" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="rounded-lg border border-[var(--acid)]/20 bg-[var(--acid)]/6 p-4 text-xs leading-5 text-[var(--acid-ink)]">
           Manual publishing mode · evidence will be stored in the immutable publication history.
         </div>
-        {accountOptions.length ? (
+        {sheetOptions.length ? (
+          <Field
+            label="Sheet row"
+            htmlFor="publication-sheet-item"
+            error={form.formState.errors.promotionChannelSheetItemId?.message}
+          >
+            <Select id="publication-sheet-item" {...form.register('promotionChannelSheetItemId')}>
+              {sheetOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.accountName} · {item.handle}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : accountOptions.length ? (
           <Field
             label="Publishing account"
             htmlFor="publication-account"
@@ -590,10 +628,11 @@ export function PublicationDialog({
             </Field>
           </div>
         )}
-        {accountOptions.length ? (
+        {sheetOptions.length || accountOptions.length ? (
           <>
             <input type="hidden" {...form.register('provider')} />
             <input type="hidden" {...form.register('destination')} />
+            <input type="hidden" {...form.register('promotionChannelSheetItemId')} />
           </>
         ) : null}
         <Field

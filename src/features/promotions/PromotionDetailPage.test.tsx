@@ -161,6 +161,8 @@ describe('creative production actions', () => {
         allowedActions: ['ATTACH_RESOURCE'],
       },
       metadata: null,
+      channelSheet: null,
+      channelSheetItems: [],
       resources: [],
       submissions: [],
       publications: [],

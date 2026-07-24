@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { handleRequest as adminUsers } from '../admin-users/index.ts';
+import { handleRequest as googleSheetsChannels } from '../google-sheets-channels/index.ts';
 import { handleRequest as processOutbox } from '../process-outbox/index.ts';
 import { handleRequest as providerWebhook } from '../provider-webhook/index.ts';
 import { handleRequest as sendNotification } from '../send-notification/index.ts';
@@ -13,6 +14,7 @@ describe('Edge Function entrypoints', () => {
   it('loads every endpoint through the same module graph used by the runtime', () => {
     expect([
       adminUsers,
+      googleSheetsChannels,
       processOutbox,
       providerWebhook,
       sendNotification,

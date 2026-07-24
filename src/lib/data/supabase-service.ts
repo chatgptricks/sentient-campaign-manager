@@ -10,6 +10,8 @@ import type {
   Profile,
   Promotion,
   PromotionAction,
+  PromotionChannelSheet,
+  PromotionChannelSheetItem,
   PublishingAccount,
   Publication,
   PublicationVerification,
@@ -155,6 +157,40 @@ function mapPublishingAccount(raw: unknown): PublishingAccount {
   };
 }
 
+function mapPromotionChannelSheet(raw: unknown): PromotionChannelSheet {
+  const row = asRow(raw);
+  return {
+    id: textValue(row.id),
+    promotionId: textValue(row.promotion_id),
+    sheetUrl: textValue(row.sheet_url),
+    spreadsheetId: textValue(row.spreadsheet_id),
+    sheetGid: nullableText(row.sheet_gid),
+    sheetName: nullableText(row.sheet_name),
+    lastSyncedAt: nullableText(row.last_synced_at),
+  };
+}
+
+function mapPromotionChannelSheetItem(raw: unknown): PromotionChannelSheetItem {
+  const row = asRow(raw);
+  return {
+    id: textValue(row.id),
+    sheetId: textValue(row.sheet_id),
+    rowNumber: numberValue(row.row_number),
+    crmItemId: textValue(row.crm_item_id),
+    platform: textValue(row.platform, 'INSTAGRAM') as PromotionChannelSheetItem['platform'],
+    accountName: textValue(row.account_name),
+    handle: textValue(row.handle),
+    accountUrl: textValue(row.account_url),
+    ownershipType: textValue(
+      row.ownership_type,
+      'SENTIENT_OWNED',
+    ) as PromotionChannelSheetItem['ownershipType'],
+    partnerName: nullableText(row.partner_name),
+    active: row.active !== false,
+    notes: nullableText(row.notes),
+  };
+}
+
 function mapResource(raw: unknown): ResourceLink {
   const row = asRow(raw);
   const provider = textValue(row.provider, 'OTHER') as ResourceLink['provider'];
@@ -227,6 +263,7 @@ function mapPublication(raw: unknown): Publication {
     id: textValue(row.id),
     promotionId: textValue(row.promotion_id),
     publishingAccountId: nullableText(row.publishing_account_id),
+    promotionChannelSheetItemId: nullableText(row.promotion_channel_sheet_item_id),
     provider: textValue(row.provider),
     destination: textValue(row.destination),
     publicationUrl: textValue(row.publication_url),
@@ -451,6 +488,8 @@ export const supabaseCampaignService: CampaignService = {
       verifications,
       invoices,
       metadata,
+      channelSheet,
+      channelSheetItems,
       activity,
       actions,
     ] = await Promise.all([
@@ -497,6 +536,12 @@ export const supabaseCampaignService: CampaignService = {
         .order('created_at', { ascending: false })
         .limit(1),
       supabase.from('campaign_metadata').select('*').eq('promotion_id', id).maybeSingle(),
+      supabase.from('promotion_channel_sheets').select('*').eq('promotion_id', id).maybeSingle(),
+      supabase
+        .from('promotion_channel_sheet_items')
+        .select('*, sheet:promotion_channel_sheets!inner(promotion_id)')
+        .eq('sheet.promotion_id', id)
+        .order('row_number'),
       supabase
         .from('audit_log')
         .select('*, actor:profiles!audit_log_actor_id_fkey(display_name)')
@@ -515,6 +560,8 @@ export const supabaseCampaignService: CampaignService = {
       verifications,
       invoices,
       metadata,
+      channelSheet,
+      channelSheetItems,
       activity,
     ].forEach((result) => assertSuccess(result.error));
     if (promotionResult.data === null) {
@@ -545,6 +592,8 @@ export const supabaseCampaignService: CampaignService = {
     return {
       promotion,
       metadata: metadata.data ? mapCampaignMetadata(metadata.data) : null,
+      channelSheet: channelSheet.data ? mapPromotionChannelSheet(channelSheet.data) : null,
+      channelSheetItems: (channelSheetItems.data ?? []).map(mapPromotionChannelSheetItem),
       resources: (resources.data ?? []).map(mapResource),
       submissions: (submissions.data ?? []).map((value) => {
         const mapped = mapSubmission(value);
@@ -591,6 +640,37 @@ export const supabaseCampaignService: CampaignService = {
       .order('platform');
     if (error) throw error;
     return (data ?? []).map(mapPublishingAccount);
+  },
+
+  async syncPromotionChannelSheet(promotionId: string, sheetUrl: string) {
+    const { data, error } = await supabase.functions.invoke('google-sheets-channels', {
+      body: { action: 'sync', promotionId, sheetUrl },
+      headers: requestHeaders('google-sheets-sync'),
+    });
+    await assertFunctionSuccess(error);
+    const row = asRow(data);
+    return Array.isArray(row.items) ? row.items.map(mapPromotionChannelSheetItem) : [];
+  },
+
+  async updatePromotionChannelSheetItem(itemId: string, input: Partial<PromotionChannelSheetItem>) {
+    const { data, error } = await supabase.functions.invoke('google-sheets-channels', {
+      body: { action: 'update_item', itemId, item: input },
+      headers: requestHeaders('google-sheets-update-item'),
+    });
+    await assertFunctionSuccess(error);
+    return mapPromotionChannelSheetItem(asRow(data).item);
+  },
+
+  async appendPromotionChannelSheetItem(
+    promotionId: string,
+    input: Partial<PromotionChannelSheetItem>,
+  ) {
+    const { data, error } = await supabase.functions.invoke('google-sheets-channels', {
+      body: { action: 'append_item', promotionId, item: input },
+      headers: requestHeaders('google-sheets-append-item'),
+    });
+    await assertFunctionSuccess(error);
+    return mapPromotionChannelSheetItem(asRow(data).item);
   },
 
   async listProfiles(role?: RoleCode) {
@@ -881,6 +961,7 @@ export const supabaseCampaignService: CampaignService = {
         provider: input.provider,
         destination: input.destination,
         publishing_account_id: input.publishingAccountId || null,
+        promotion_channel_sheet_item_id: input.promotionChannelSheetItemId || null,
         publication_url: input.publicationUrl,
         external_publication_id: input.externalPublicationId || null,
         artifact_resource_link_id: input.artifactResourceLinkId,

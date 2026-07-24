@@ -7,6 +7,7 @@ import type {
   Notification,
   OperationsHealth,
   PublishingAccount,
+  PromotionChannelSheetItem,
   Profile,
   Promotion,
   PromotionDetail,
@@ -45,6 +46,18 @@ export interface CampaignService {
   saveCampaignMetadata(id: string, input: CampaignMetadataInput): Promise<CampaignMetadata>;
   listClients(): Promise<Client[]>;
   listPublishingAccounts(): Promise<PublishingAccount[]>;
+  syncPromotionChannelSheet(
+    promotionId: string,
+    sheetUrl: string,
+  ): Promise<PromotionChannelSheetItem[]>;
+  updatePromotionChannelSheetItem(
+    itemId: string,
+    input: Partial<PromotionChannelSheetItem>,
+  ): Promise<PromotionChannelSheetItem>;
+  appendPromotionChannelSheetItem(
+    promotionId: string,
+    input: Partial<PromotionChannelSheetItem>,
+  ): Promise<PromotionChannelSheetItem>;
   listProfiles(role?: RoleCode): Promise<Profile[]>;
   listNotifications(): Promise<Notification[]>;
   getOperationsHealth(): Promise<OperationsHealth>;

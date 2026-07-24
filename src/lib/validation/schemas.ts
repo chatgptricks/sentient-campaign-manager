@@ -63,6 +63,7 @@ export const campaignMetadataSchema = z.object({
   platforms: z.array(z.enum(publishingChannels)).min(1, 'Choose at least one channel.'),
   publishingAccountIds: z.array(z.uuid()),
   externalPartnerAccountIds: z.array(z.uuid()),
+  publishingSheetUrl: optionalLink.optional(),
   internalNotes: z.string().trim().max(2000),
 });
 
@@ -106,6 +107,7 @@ export const approvalDecisionSchema = z
 
 export const publicationSchema = z.object({
   publishingAccountId: z.union([z.literal(''), z.uuid()]).optional(),
+  promotionChannelSheetItemId: z.union([z.literal(''), z.uuid()]).optional(),
   provider: z.enum(publishingChannels),
   destination: z.string().trim().min(2, 'Destination is required.').max(120),
   publicationUrl: anyLink,

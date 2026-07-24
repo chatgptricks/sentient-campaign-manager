@@ -55,6 +55,8 @@ jobs:
       SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       OUTBOX_PROCESSOR_SECRET: ${{ secrets.OUTBOX_PROCESSOR_SECRET }}
       PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -111,6 +113,17 @@ jobs:
             SITE_URL="$PUBLIC_APP_URL"
             ADMIN_INVITE_REDIRECT_URL="$PUBLIC_APP_URL"
           )
+          if [ -n "$GOOGLE_SERVICE_ACCOUNT_EMAIL" ] && [ -n "$GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY" ]; then
+            secret_args+=(
+              GOOGLE_SERVICE_ACCOUNT_EMAIL="$GOOGLE_SERVICE_ACCOUNT_EMAIL"
+              GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="$GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"
+            )
+          elif [ -n "$GOOGLE_SERVICE_ACCOUNT_EMAIL" ] || [ -n "$GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY" ]; then
+            echo "::error::Set both GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY, or leave both empty."
+            exit 1
+          else
+            echo "::warning::Google Sheets secrets are not set. Editable Sheet channel checklists will return a configuration error."
+          fi
           # Slack stays optional. A missing bot token is the failure mode that silently
           # produces no notifications at all, so say so loudly in the run summary.
           if [ -n "$SLACK_BOT_TOKEN" ]; then
@@ -171,6 +184,7 @@ jobs:
 
           for fn in \
             admin-users \
+            google-sheets-channels \
             process-outbox \
             provider-webhook \
             send-notification \

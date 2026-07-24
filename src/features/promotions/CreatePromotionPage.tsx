@@ -25,6 +25,18 @@ import {
 } from './channel-account-selection';
 
 type Step = 1 | 2;
+type DetailSnapshot = Pick<PromotionInput, 'clientId' | 'description' | 'dueDate' | 'title'> & {
+  metadata: Pick<
+    NonNullable<PromotionInput['metadata']>,
+    | 'briefUrl'
+    | 'campaignType'
+    | 'clientMaterialLinks'
+    | 'externalResourceLinks'
+    | 'internalNotes'
+    | 'priority'
+    | 'scheduledDate'
+  >;
+};
 
 const steps: { value: Step; label: string }[] = [
   { value: 1, label: 'Promotion details' },
@@ -91,6 +103,7 @@ export function CreatePromotionPage() {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const [step, setStep] = useState<Step>(1);
+  const [detailSnapshot, setDetailSnapshot] = useState<DetailSnapshot | null>(null);
   const calendarDueDate = searchParams.get('dueDate') ?? '';
   const clientsQuery = useQuery({
     queryKey: ['clients', profile?.id],
@@ -104,6 +117,7 @@ export function CreatePromotionPage() {
   });
   const form = useForm<PromotionInput>({
     resolver: zodResolver(promotionSchema),
+    shouldUnregister: false,
     defaultValues: {
       clientId: '',
       title: '',
@@ -119,13 +133,19 @@ export function CreatePromotionPage() {
         platforms: ['INSTAGRAM'],
         publishingAccountIds: [],
         externalPartnerAccountIds: [],
+        publishingSheetUrl: '',
         internalNotes: '',
       },
     },
   });
 
   const mutation = useMutation({
-    mutationFn: campaignService.createPromotion,
+    mutationFn: async (input: PromotionInput) => {
+      const promotion = await campaignService.createPromotion(input);
+      const sheetUrl = input.metadata?.publishingSheetUrl?.trim();
+      if (sheetUrl) await campaignService.syncPromotionChannelSheet(promotion.id, sheetUrl);
+      return promotion;
+    },
     onSuccess: async (promotion) => {
       await queryClient.invalidateQueries({ queryKey: ['promotions'] });
       toast.success('Promotion created.');
@@ -137,7 +157,41 @@ export function CreatePromotionPage() {
   const submit = form.handleSubmit((input) => mutation.mutate(input));
 
   async function goToChannels() {
-    if (await form.trigger(detailFields)) setStep(2);
+    if (await form.trigger(detailFields)) {
+      const values = form.getValues();
+      setDetailSnapshot({
+        clientId: values.clientId,
+        description: values.description,
+        dueDate: values.dueDate,
+        title: values.title,
+        metadata: {
+          briefUrl: values.metadata?.briefUrl ?? '',
+          campaignType: values.metadata?.campaignType ?? 'Social promotion',
+          clientMaterialLinks: values.metadata?.clientMaterialLinks ?? '',
+          externalResourceLinks: values.metadata?.externalResourceLinks ?? '',
+          internalNotes: values.metadata?.internalNotes ?? '',
+          priority: values.metadata?.priority ?? 'NORMAL',
+          scheduledDate: values.metadata?.scheduledDate ?? '',
+        },
+      });
+      setStep(2);
+    }
+  }
+
+  function backToDetails() {
+    if (detailSnapshot) {
+      form.setValue('clientId', detailSnapshot.clientId);
+      form.setValue('description', detailSnapshot.description);
+      form.setValue('dueDate', detailSnapshot.dueDate);
+      form.setValue('title', detailSnapshot.title);
+      for (const [key, value] of Object.entries(detailSnapshot.metadata)) {
+        form.setValue(
+          `metadata.${key}` as FieldPath<PromotionInput>,
+          value as PromotionInput[keyof PromotionInput],
+        );
+      }
+    }
+    setStep(1);
   }
 
   if (clientsQuery.isLoading || accountsQuery.isLoading)
@@ -417,11 +471,36 @@ export function CreatePromotionPage() {
                   </div>
                 </Field>
                 <Field
+                  label="Google Sheet link"
+                  htmlFor="promotion-publishing-sheet"
+                  error={form.formState.errors.metadata?.publishingSheetUrl?.message}
+                  hint="Use a Sheet with crm_item_id, platform, account_name, handle, account_url, ownership_type, partner_name, active, and notes columns."
+                >
+                  <Input
+                    id="promotion-publishing-sheet"
+                    type="url"
+                    placeholder="https://docs.google.com/spreadsheets/d/…"
+                    {...form.register('metadata.publishingSheetUrl')}
+                  />
+                </Field>
+                <Field
                   label="Channel accounts"
                   htmlFor="promotion-publishing-accounts"
-                  hint="Choose the predefined accounts that become the promotion checklist."
+                  hint={
+                    form.watch('metadata.publishingSheetUrl')
+                      ? 'The Google Sheet will become the editable publishing checklist.'
+                      : 'Choose the predefined accounts that become the promotion checklist.'
+                  }
                 >
-                  {selectedPlatforms.length ? (
+                  {form.watch('metadata.publishingSheetUrl') ? (
+                    <p
+                      id="promotion-publishing-accounts"
+                      className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-muted)]"
+                    >
+                      Sheet checklist enabled. Predefined account selection is optional and will not
+                      be used for this promotion.
+                    </p>
+                  ) : selectedPlatforms.length ? (
                     visibleAccounts.length ? (
                       <div id="promotion-publishing-accounts" className="grid gap-2 sm:grid-cols-2">
                         {visibleAccounts.map((account: PublishingAccount) => {
@@ -479,7 +558,7 @@ export function CreatePromotionPage() {
                   )}
                 </Field>
                 <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] pt-6">
-                  <Button type="button" variant="ghost" onClick={() => setStep(1)}>
+                  <Button type="button" variant="ghost" onClick={backToDetails}>
                     <ArrowLeft className="size-4" />
                     Back to details
                   </Button>

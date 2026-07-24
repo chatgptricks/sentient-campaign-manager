@@ -59,6 +59,31 @@ export interface CampaignMetadata {
   internalNotes: string | null;
 }
 
+export interface PromotionChannelSheet {
+  id: string;
+  promotionId: string;
+  sheetUrl: string;
+  spreadsheetId: string;
+  sheetGid: string | null;
+  sheetName: string | null;
+  lastSyncedAt: string | null;
+}
+
+export interface PromotionChannelSheetItem {
+  id: string;
+  sheetId: string;
+  rowNumber: number;
+  crmItemId: string;
+  platform: PublishingChannel;
+  accountName: string;
+  handle: string;
+  accountUrl: string;
+  ownershipType: PublishingAccountOwnership;
+  partnerName: string | null;
+  active: boolean;
+  notes: string | null;
+}
+
 export type PromotionAction =
   | 'UPDATE_PROMOTION'
   | 'CANCEL_PROMOTION'
@@ -122,6 +147,7 @@ export interface Publication {
   id: string;
   promotionId: string;
   publishingAccountId: string | null;
+  promotionChannelSheetItemId: string | null;
   provider: string;
   destination: string;
   publicationUrl: string;
@@ -172,6 +198,8 @@ export interface Notification {
 export interface PromotionDetail {
   promotion: Promotion;
   metadata: CampaignMetadata | null;
+  channelSheet: PromotionChannelSheet | null;
+  channelSheetItems: PromotionChannelSheetItem[];
   resources: ResourceLink[];
   submissions: ApprovalSubmission[];
   publications: Publication[];

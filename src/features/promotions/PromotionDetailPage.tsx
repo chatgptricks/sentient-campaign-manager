@@ -39,6 +39,7 @@ import type { AssignmentRole } from '../../lib/data/service';
 import type {
   Invoice,
   PromotionAction,
+  PromotionChannelSheetItem,
   PromotionDetail,
   PublishingAccount,
   ResourceLink,
@@ -54,6 +55,7 @@ import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { ConfirmDialog, type ConfirmDialogState } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { Input, Select, Textarea } from '../../components/ui/Field';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { PromotionStatusBadge } from './PromotionStatusBadge';
 import {
@@ -84,7 +86,7 @@ type DialogState =
   | { type: 'edit' }
   | { type: 'resource' }
   | { type: 'approve'; decision: ApprovalDecisionInput['decision'] }
-  | { type: 'publication'; accountId?: string }
+  | { type: 'publication'; accountId?: string; sheetItemId?: string }
   | { type: 'invoice' }
   | { type: 'issue-invoice' }
   | { type: 'cancel' };
@@ -679,15 +681,23 @@ function ApprovalSection({
 function PublishingSection({
   detail,
   accounts,
+  onSyncSheet,
+  onUpdateSheetItem,
   onRecordPublication,
 }: {
   detail: PromotionDetail;
   accounts: PublishingAccount[];
-  onRecordPublication(accountId?: string): void;
+  onSyncSheet(): void;
+  onUpdateSheetItem(itemId: string, input: Partial<PromotionChannelSheetItem>): void;
+  onRecordPublication(accountId?: string, sheetItemId?: string): void;
 }) {
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Partial<PromotionChannelSheetItem>>({});
   const selectedAccountIds = new Set(detail.metadata?.publishingAccountIds ?? []);
   const selectedAccounts = accounts.filter((account) => selectedAccountIds.has(account.id));
+  const sheetItems = detail.channelSheetItems;
   const canRecord = detail.promotion.allowedActions.includes('RECORD_PUBLICATION');
+  const canManage = detail.promotion.allowedActions.includes('UPDATE_PROMOTION');
   const completedAccounts = selectedAccounts.filter((account) =>
     detail.publications.some(
       (publication) =>
@@ -697,14 +707,45 @@ function PublishingSection({
           publication.destination === account.handle),
     ),
   );
+  const completedSheetItems = sheetItems.filter((item) =>
+    detail.publications.some(
+      (publication) =>
+        publication.promotionChannelSheetItemId === item.id ||
+        (!publication.promotionChannelSheetItemId &&
+          publication.provider === item.platform &&
+          publication.destination === item.handle),
+    ),
+  );
+  const startEdit = (item: PromotionChannelSheetItem) => {
+    setEditingItemId(item.id);
+    setDraft(item);
+  };
   return (
     <div className="space-y-5">
       <Card>
         <CardHeader
           title="Publishing checklist"
-          description="Each selected account stays attached to the parent promotion until its publication is recorded."
+          description={
+            detail.channelSheet
+              ? `Google Sheet source${detail.channelSheet.sheetName ? ` · ${detail.channelSheet.sheetName}` : ''}`
+              : 'Each selected account stays attached to the parent promotion until its publication is recorded.'
+          }
           action={
-            selectedAccounts.length ? (
+            sheetItems.length ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  tone={completedSheetItems.length === sheetItems.length ? 'success' : 'attention'}
+                >
+                  {completedSheetItems.length}/{sheetItems.length} complete
+                </Badge>
+                {canManage ? (
+                  <Button size="sm" variant="secondary" onClick={onSyncSheet}>
+                    <LoaderCircle className="size-3.5" />
+                    Sync Sheet
+                  </Button>
+                ) : null}
+              </div>
+            ) : selectedAccounts.length ? (
               <Badge
                 tone={
                   completedAccounts.length === selectedAccounts.length ? 'success' : 'attention'
@@ -715,7 +756,162 @@ function PublishingSection({
             ) : undefined
           }
         />
-        {selectedAccounts.length ? (
+        {sheetItems.length ? (
+          <div className="divide-y divide-[var(--border)]">
+            {sheetItems.map((item) => {
+              const publication = detail.publications.find(
+                (entry) =>
+                  entry.promotionChannelSheetItemId === item.id ||
+                  (!entry.promotionChannelSheetItemId &&
+                    entry.provider === item.platform &&
+                    entry.destination === item.handle),
+              );
+              const editing = editingItemId === item.id;
+              return (
+                <div key={item.id} className="px-5 py-4">
+                  {editing ? (
+                    <div className="grid gap-3">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <Select
+                          value={draft.platform ?? item.platform}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              platform: event.target.value as PromotionChannelSheetItem['platform'],
+                            }))
+                          }
+                        >
+                          <option value="INSTAGRAM">Instagram</option>
+                          <option value="X">X</option>
+                          <option value="LINKEDIN">LinkedIn</option>
+                        </Select>
+                        <Input
+                          value={draft.accountName ?? item.accountName}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, accountName: event.target.value }))
+                          }
+                        />
+                        <Input
+                          value={draft.handle ?? item.handle}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, handle: event.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+                        <Input
+                          type="url"
+                          value={draft.accountUrl ?? item.accountUrl}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, accountUrl: event.target.value }))
+                          }
+                        />
+                        <Select
+                          value={draft.ownershipType ?? item.ownershipType}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              ownershipType: event.target
+                                .value as PromotionChannelSheetItem['ownershipType'],
+                            }))
+                          }
+                        >
+                          <option value="SENTIENT_OWNED">Sentient-owned</option>
+                          <option value="CLIENT_OWNED">Client-owned</option>
+                          <option value="EXTERNAL_PARTNER">External partner</option>
+                        </Select>
+                      </div>
+                      <Textarea
+                        value={draft.notes ?? item.notes ?? ''}
+                        onChange={(event) =>
+                          setDraft((current) => ({ ...current, notes: event.target.value }))
+                        }
+                      />
+                      <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-[var(--acid)]"
+                          checked={draft.active ?? item.active}
+                          onChange={(event) =>
+                            setDraft((current) => ({ ...current, active: event.target.checked }))
+                          }
+                        />
+                        Active
+                      </label>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setEditingItemId(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            onUpdateSheetItem(item.id, draft);
+                            setEditingItemId(null);
+                          }}
+                        >
+                          Save to Sheet
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`grid size-8 place-items-center rounded-full border text-xs font-bold ${publication ? 'border-[var(--acid)]/40 bg-[var(--acid)]/10 text-[var(--acid-ink)]' : 'border-[var(--border-strong)] text-[var(--text-dim)]'}`}
+                        >
+                          {publication ? <Check className="size-4" /> : item.rowNumber}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text)]">
+                            {item.accountName}
+                          </p>
+                          <p className="mt-1 text-xs text-[var(--text-dim)]">
+                            {publishingChannelLabel[item.platform]} · {item.handle} ·{' '}
+                            {item.ownershipType.replaceAll('_', ' ')}
+                            {item.active ? '' : ' · inactive'}
+                          </p>
+                        </div>
+                      </div>
+                      {publication ? (
+                        <Button asChild variant="secondary" size="sm">
+                          <a href={publication.publicationUrl} target="_blank" rel="noreferrer">
+                            Open live post <ArrowUpRight className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone={item.active ? 'attention' : 'neutral'}>
+                            {item.active ? 'Awaiting post' : 'Inactive'}
+                          </Badge>
+                          {canManage ? (
+                            <Button size="sm" variant="ghost" onClick={() => startEdit(item)}>
+                              <Pencil className="size-3.5" />
+                              Edit
+                            </Button>
+                          ) : null}
+                          {canRecord && item.active ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => onRecordPublication(undefined, item.id)}
+                            >
+                              <Send className="size-3.5" />
+                              Record post
+                            </Button>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : selectedAccounts.length ? (
           <div className="divide-y divide-[var(--border)]">
             {selectedAccounts.map((account) => {
               const publication = detail.publications.find(
@@ -1736,7 +1932,26 @@ export function PromotionDetailPage() {
           <PublishingSection
             detail={detail}
             accounts={accountsQuery.data ?? []}
-            onRecordPublication={(accountId) => setDialog({ type: 'publication', accountId })}
+            onSyncSheet={() => {
+              if (!detail.channelSheet) return;
+              run({
+                run: () =>
+                  campaignService.syncPromotionChannelSheet(
+                    detail.promotion.id,
+                    detail.channelSheet?.sheetUrl ?? '',
+                  ),
+                success: 'Google Sheet synced.',
+              });
+            }}
+            onUpdateSheetItem={(itemId, input) =>
+              run({
+                run: () => campaignService.updatePromotionChannelSheetItem(itemId, input),
+                success: 'Google Sheet row updated.',
+              })
+            }
+            onRecordPublication={(accountId, sheetItemId) =>
+              setDialog({ type: 'publication', accountId, sheetItemId })
+            }
           />
         </Tabs.Content>
         {canViewFinance ? (
@@ -1830,6 +2045,8 @@ export function PromotionDetailPage() {
           (detail.metadata?.publishingAccountIds ?? []).includes(account.id),
         )}
         initialAccountId={dialog?.type === 'publication' ? dialog.accountId : undefined}
+        initialSheetItemId={dialog?.type === 'publication' ? dialog.sheetItemId : undefined}
+        sheetItems={detail.channelSheetItems}
         resources={getApprovedPublicationResources(detail)}
         onSubmit={(input: PublicationInput) =>
           run({

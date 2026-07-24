@@ -133,6 +133,7 @@ Optional integrations use server-side secrets only:
 - `INTERNAL_FUNCTION_SECRET`
 - `RESEND_API_KEY` and `EMAIL_FROM`
 - `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID`
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` for editable Google Sheet channel checklists. Share each source Sheet with the service account email. Required columns are `crm_item_id`, `platform`, `account_name`, `handle`, `account_url`, `ownership_type`, `partner_name`, `active`, and `notes`.
 - `WEBHOOK_SECRET_<PROVIDER>` for each inbound provider
 
 When these are absent, the corresponding adapter truthfully reports manual or not configured mode.
@@ -198,6 +199,7 @@ Encrypted secrets:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_PROJECT_ID`
 - `OUTBOX_PROCESSOR_SECRET`
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` when editable Google Sheet channel checklists are enabled
 - `PRODUCTION_E2E_ACCOUNTS_JSON` — a GitHub secret containing six distinct, controlled active accounts (`admin`, `sales`, `creator`, `approver`, `publisher`, and `finance`), each with `email` and `password` fields
 
 Keep these accounts dedicated to release verification and free of ordinary operational ownership. The production test creates uniquely prefixed, controlled audit records and exercises the full role-separated lifecycle; these records are retained as deployment evidence rather than deleted, preserving the system's immutable audit history. The workflow verifies the candidate against a clean local Supabase stack, applies migrations, provisions Vault and Edge secrets, enforces hosted `disable_signup=true`, the exact Auth Site URL, and the recovery redirect allow list, deploys every Edge Function, smoke-tests the schema and worker, observes Cron, then builds and deploys Pages. It fails if the configured public URL, Pages output, and Vite base path disagree. The final Playwright job checks the public Auth boundary, signs in with the controlled account, reads protected data, and completes the role-separated production lifecycle.
