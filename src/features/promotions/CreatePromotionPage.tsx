@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, type FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,9 +8,7 @@ import { toast } from 'sonner';
 
 import { campaignService } from '../../lib/data';
 import { getFriendlyError } from '../../domain/errors';
-import { publishingChannelLabel, publishingChannels } from '../../domain/channels';
 import { promotionSchema, type PromotionInput } from '../../lib/validation/schemas';
-import type { PublishingAccount } from '../../domain/models';
 import { Button } from '../../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -19,10 +17,6 @@ import { LoadingState } from '../../components/ui/LoadingState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { ClientFormDialog } from '../clients/ClientFormDialog';
 import { useAuth } from '../auth/AuthProvider';
-import {
-  getSelectablePublishingAccounts,
-  prunePublishingAccountIds,
-} from './channel-account-selection';
 
 type Step = 1 | 2;
 type DetailSnapshot = Pick<PromotionInput, 'clientId' | 'description' | 'dueDate' | 'title'> & {
@@ -40,7 +34,7 @@ type DetailSnapshot = Pick<PromotionInput, 'clientId' | 'description' | 'dueDate
 
 const steps: { value: Step; label: string }[] = [
   { value: 1, label: 'Promotion details' },
-  { value: 2, label: 'Channels & accounts' },
+  { value: 2, label: 'Google Sheet' },
 ];
 
 const detailFields: FieldPath<PromotionInput>[] = [
@@ -110,11 +104,6 @@ export function CreatePromotionPage() {
     queryFn: () => campaignService.listClients(),
     enabled: Boolean(profile),
   });
-  const accountsQuery = useQuery({
-    queryKey: ['publishing-accounts', profile?.id],
-    queryFn: () => campaignService.listPublishingAccounts(),
-    enabled: Boolean(profile),
-  });
   const form = useForm<PromotionInput>({
     resolver: zodResolver(promotionSchema),
     shouldUnregister: false,
@@ -154,7 +143,19 @@ export function CreatePromotionPage() {
     onError: (error) => toast.error(getFriendlyError(error)),
   });
 
-  const submit = form.handleSubmit((input) => mutation.mutate(input));
+  async function submitPromotion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const sheetUrl = form.getValues('metadata.publishingSheetUrl')?.trim();
+    if (!sheetUrl) {
+      form.setError('metadata.publishingSheetUrl', {
+        message: 'Paste the Google Sheet link.',
+        type: 'required',
+      });
+      return;
+    }
+    if (!(await form.trigger('metadata.publishingSheetUrl'))) return;
+    void form.handleSubmit((input) => mutation.mutate(input))(event);
+  }
 
   async function goToChannels() {
     if (await form.trigger(detailFields)) {
@@ -194,25 +195,18 @@ export function CreatePromotionPage() {
     setStep(1);
   }
 
-  if (clientsQuery.isLoading || accountsQuery.isLoading)
-    return <LoadingState label="Preparing promotion form" />;
-  if (clientsQuery.error || accountsQuery.error) {
+  if (clientsQuery.isLoading) return <LoadingState label="Preparing promotion form" />;
+  if (clientsQuery.error) {
     return (
       <ErrorState
-        message={getFriendlyError(clientsQuery.error ?? accountsQuery.error)}
+        message={getFriendlyError(clientsQuery.error)}
         retry={() => {
           void clientsQuery.refetch();
-          void accountsQuery.refetch();
         }}
       />
     );
   }
 
-  const selectedPlatforms = form.watch('metadata.platforms') ?? [];
-  const visibleAccounts = getSelectablePublishingAccounts(
-    accountsQuery.data ?? [],
-    selectedPlatforms,
-  );
   const selectedClient = clientsQuery.data?.find(
     (client) => client.id === form.getValues('clientId'),
   );
@@ -225,7 +219,7 @@ export function CreatePromotionPage() {
         description={
           step === 1
             ? 'Start the promotion in Draft with the brief, dates, and production context.'
-            : 'Choose the channels and accounts that become the publishing checklist.'
+            : 'Paste the Google Sheet that becomes the editable publishing checklist.'
         }
         actions={
           <Button asChild variant="ghost">
@@ -241,7 +235,7 @@ export function CreatePromotionPage() {
 
       <Card>
         <CardHeader
-          title={step === 1 ? 'Promotion brief' : 'Publishing network'}
+          title={step === 1 ? 'Promotion brief' : 'Publishing Sheet'}
           description={
             step === 1
               ? 'Required information for the first workflow record.'
@@ -259,7 +253,7 @@ export function CreatePromotionPage() {
                 void goToChannels();
                 return;
               }
-              void submit(event);
+              void submitPromotion(event);
             }}
           >
             {step === 1 ? (
@@ -429,48 +423,6 @@ export function CreatePromotionPage() {
             ) : (
               <>
                 <Field
-                  label="Channels"
-                  htmlFor="promotion-platforms"
-                  error={form.formState.errors.metadata?.platforms?.message}
-                  hint="Select every channel that will receive a publishing checklist item."
-                >
-                  <div id="promotion-platforms" className="grid gap-2 sm:grid-cols-3">
-                    {publishingChannels.map((platform) => (
-                      <label
-                        key={platform}
-                        className="flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--text-muted)]"
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-[var(--acid)]"
-                          checked={(form.watch('metadata.platforms') ?? []).includes(platform)}
-                          onChange={(event) => {
-                            const current = form.getValues('metadata.platforms') ?? [];
-                            const nextPlatforms = event.target.checked
-                              ? [...current, platform]
-                              : current.filter((item) => item !== platform);
-                            form.setValue('metadata.platforms', nextPlatforms, {
-                              shouldValidate: true,
-                            });
-                            if (!event.target.checked) {
-                              form.setValue(
-                                'metadata.publishingAccountIds',
-                                prunePublishingAccountIds(
-                                  form.getValues('metadata.publishingAccountIds') ?? [],
-                                  accountsQuery.data ?? [],
-                                  nextPlatforms,
-                                ),
-                                { shouldValidate: true },
-                              );
-                            }
-                          }}
-                        />
-                        {publishingChannelLabel[platform]}
-                      </label>
-                    ))}
-                  </div>
-                </Field>
-                <Field
                   label="Google Sheet link"
                   htmlFor="promotion-publishing-sheet"
                   error={form.formState.errors.metadata?.publishingSheetUrl?.message}
@@ -482,80 +434,6 @@ export function CreatePromotionPage() {
                     placeholder="https://docs.google.com/spreadsheets/d/…"
                     {...form.register('metadata.publishingSheetUrl')}
                   />
-                </Field>
-                <Field
-                  label="Channel accounts"
-                  htmlFor="promotion-publishing-accounts"
-                  hint={
-                    form.watch('metadata.publishingSheetUrl')
-                      ? 'The Google Sheet will become the editable publishing checklist.'
-                      : 'Choose the predefined accounts that become the promotion checklist.'
-                  }
-                >
-                  {form.watch('metadata.publishingSheetUrl') ? (
-                    <p
-                      id="promotion-publishing-accounts"
-                      className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-muted)]"
-                    >
-                      Sheet checklist enabled. Predefined account selection is optional and will not
-                      be used for this promotion.
-                    </p>
-                  ) : selectedPlatforms.length ? (
-                    visibleAccounts.length ? (
-                      <div id="promotion-publishing-accounts" className="grid gap-2 sm:grid-cols-2">
-                        {visibleAccounts.map((account: PublishingAccount) => {
-                          const selected = (
-                            form.watch('metadata.publishingAccountIds') ?? []
-                          ).includes(account.id);
-                          return (
-                            <label
-                              key={account.id}
-                              className={`flex min-h-12 items-center justify-between gap-3 rounded-md border px-3 text-xs ${selected ? 'border-[var(--acid)]/50 bg-[var(--acid)]/8 text-[var(--text)]' : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]'}`}
-                            >
-                              <span>
-                                <span className="block font-semibold">{account.accountName}</span>
-                                <span className="mt-1 block text-[10px] text-[var(--text-dim)]">
-                                  {publishingChannelLabel[account.platform]} · {account.handle}
-                                  {account.active ? '' : ' · Inactive'}
-                                </span>
-                              </span>
-                              <input
-                                type="checkbox"
-                                className="size-4 accent-[var(--acid)]"
-                                checked={selected}
-                                disabled={!account.active}
-                                onChange={(event) => {
-                                  const current =
-                                    form.getValues('metadata.publishingAccountIds') ?? [];
-                                  form.setValue(
-                                    'metadata.publishingAccountIds',
-                                    event.target.checked
-                                      ? [...current, account.id]
-                                      : current.filter((id) => id !== account.id),
-                                    { shouldValidate: true },
-                                  );
-                                }}
-                              />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p
-                        id="promotion-publishing-accounts"
-                        className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-muted)]"
-                      >
-                        No active accounts are configured for the selected channels.
-                      </p>
-                    )
-                  ) : (
-                    <p
-                      id="promotion-publishing-accounts"
-                      className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-muted)]"
-                    >
-                      Select a channel to choose its accounts.
-                    </p>
-                  )}
                 </Field>
                 <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] pt-6">
                   <Button type="button" variant="ghost" onClick={backToDetails}>

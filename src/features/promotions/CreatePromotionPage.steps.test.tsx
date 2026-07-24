@@ -6,10 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createPromotion = vi.hoisted(() => vi.fn());
 const listClients = vi.hoisted(() => vi.fn());
-const listPublishingAccounts = vi.hoisted(() => vi.fn());
+const syncPromotionChannelSheet = vi.hoisted(() => vi.fn());
 
 vi.mock('../../lib/data', () => ({
-  campaignService: { createPromotion, listClients, listPublishingAccounts },
+  campaignService: { createPromotion, listClients, syncPromotionChannelSheet },
 }));
 
 vi.mock('../auth/AuthProvider', () => ({
@@ -24,7 +24,7 @@ import { CreatePromotionPage } from './CreatePromotionPage';
 
 // The promotion schema validates these as UUIDs, so the fixtures must be real ones.
 const CLIENT_ID = '10000000-0000-4000-8000-000000000001';
-const ACCOUNT_ID = '40000000-0000-4000-8000-000000000001';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/sheet-id/edit#gid=0';
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -50,28 +50,15 @@ describe('create promotion steps', () => {
     listClients.mockResolvedValue([
       { id: CLIENT_ID, name: 'Arcadia Hotels', billingEmail: null, billingAddress: null },
     ]);
-    listPublishingAccounts.mockReset();
-    listPublishingAccounts.mockResolvedValue([
-      {
-        id: ACCOUNT_ID,
-        platform: 'INSTAGRAM',
-        accountName: 'Sentient Network',
-        handle: '@sentient',
-        accountUrl: 'https://www.instagram.com/sentient/',
-        ownershipType: 'SENTIENT_OWNED',
-        partnerName: null,
-        active: true,
-        defaultPublisherName: null,
-        notes: null,
-      },
-    ]);
+    syncPromotionChannelSheet.mockReset();
+    syncPromotionChannelSheet.mockResolvedValue([]);
   });
 
-  it('opens on the details step without showing channel selection', async () => {
+  it('opens on the details step without showing Sheet setup', async () => {
     renderPage();
 
     expect(await screen.findByLabelText('Promotion name')).toBeVisible();
-    expect(screen.queryByRole('checkbox', { name: 'Instagram' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Google Sheet link')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Continue/ })).toBeVisible();
     expect(screen.queryByRole('button', { name: /Create promotion/ })).not.toBeInTheDocument();
   });
@@ -84,11 +71,11 @@ describe('create promotion steps', () => {
     await user.click(screen.getByRole('button', { name: /Continue/ }));
 
     expect(await screen.findByText('Choose a client.')).toBeVisible();
-    expect(screen.queryByRole('checkbox', { name: 'Instagram' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Google Sheet link')).not.toBeInTheDocument();
     expect(createPromotion).not.toHaveBeenCalled();
   });
 
-  it('advances to channels once the details are valid', async () => {
+  it('advances to Sheet setup once the details are valid', async () => {
     const user = userEvent.setup();
     renderPage();
 
@@ -96,7 +83,7 @@ describe('create promotion steps', () => {
     await fillRequiredDetails(user);
     await user.click(screen.getByRole('button', { name: /Continue/ }));
 
-    expect(await screen.findByRole('checkbox', { name: 'Instagram' })).toBeVisible();
+    expect(await screen.findByLabelText('Google Sheet link')).toBeVisible();
     expect(screen.queryByLabelText('Promotion name')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create promotion/ })).toBeVisible();
   });
@@ -108,21 +95,34 @@ describe('create promotion steps', () => {
     await screen.findByLabelText('Promotion name');
     await fillRequiredDetails(user);
     await user.click(screen.getByRole('button', { name: /Continue/ }));
-    await screen.findByRole('checkbox', { name: 'Instagram' });
+    await screen.findByLabelText('Google Sheet link');
     await user.click(screen.getByRole('button', { name: /Back to details/ }));
 
     expect(await screen.findByLabelText('Promotion name')).toHaveValue('Summer rooftop launch');
     expect(screen.getByLabelText('Client')).toHaveValue(CLIENT_ID);
   });
 
-  it('submits the combined payload only from the channels step', async () => {
+  it('requires a Google Sheet link before creating the promotion', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByLabelText('Promotion name');
     await fillRequiredDetails(user);
     await user.click(screen.getByRole('button', { name: /Continue/ }));
-    await user.click(await screen.findByRole('checkbox', { name: /Sentient Network/ }));
+    await user.click(screen.getByRole('button', { name: /Create promotion/ }));
+
+    expect(await screen.findByText('Paste the Google Sheet link.')).toBeVisible();
+    expect(createPromotion).not.toHaveBeenCalled();
+  });
+
+  it('submits the promotion and syncs the Google Sheet from step two', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByLabelText('Promotion name');
+    await fillRequiredDetails(user);
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+    await user.type(await screen.findByLabelText('Google Sheet link'), SHEET_URL);
     await user.click(screen.getByRole('button', { name: /Create promotion/ }));
 
     await waitFor(() => expect(createPromotion).toHaveBeenCalledOnce());
@@ -131,7 +131,10 @@ describe('create promotion steps', () => {
       clientId: CLIENT_ID,
       title: 'Summer rooftop launch',
     });
-    expect(payload.metadata.platforms).toContain('INSTAGRAM');
-    expect(payload.metadata.publishingAccountIds).toEqual([ACCOUNT_ID]);
+    expect(payload.metadata.publishingSheetUrl).toBe(SHEET_URL);
+    expect(payload.metadata.publishingAccountIds).toEqual([]);
+    await waitFor(() =>
+      expect(syncPromotionChannelSheet).toHaveBeenCalledWith('promotion-1', SHEET_URL),
+    );
   });
 });
