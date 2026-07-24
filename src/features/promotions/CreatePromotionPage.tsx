@@ -132,7 +132,9 @@ export function CreatePromotionPage() {
     mutationFn: async (input: PromotionInput) => {
       const promotion = await campaignService.createPromotion(input);
       const sheetUrl = input.metadata?.publishingSheetUrl?.trim();
-      if (sheetUrl) await campaignService.syncPromotionChannelSheet(promotion.id, sheetUrl);
+      if (sheetUrl && import.meta.env.VITE_E2E_SKIP_GOOGLE_SHEET_SYNC !== 'true') {
+        await campaignService.syncPromotionChannelSheet(promotion.id, sheetUrl);
+      }
       return promotion;
     },
     onSuccess: async (promotion) => {
@@ -426,7 +428,7 @@ export function CreatePromotionPage() {
                   label="Google Sheet link"
                   htmlFor="promotion-publishing-sheet"
                   error={form.formState.errors.metadata?.publishingSheetUrl?.message}
-                  hint="Use a Sheet with crm_item_id, platform, account_name, handle, account_url, ownership_type, partner_name, active, and notes columns."
+                  hint="Paste any editable Google Sheet. The first row becomes the table headers inside the CRM."
                 >
                   <Input
                     id="promotion-publishing-sheet"

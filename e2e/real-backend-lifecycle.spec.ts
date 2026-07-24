@@ -119,7 +119,9 @@ test('enforces role ownership across a complete database-backed lifecycle', asyn
   const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   await sales.page.getByLabel('Due date').fill(dueDate);
   await sales.page.getByRole('button', { name: 'Continue' }).click();
-  await expect(sales.page.getByRole('checkbox', { name: 'Instagram' })).toBeVisible();
+  await sales.page
+    .getByLabel('Google Sheet link')
+    .fill('https://docs.google.com/spreadsheets/d/e2e-sheet-id/edit#gid=0');
   await sales.page.getByRole('button', { name: 'Create promotion' }).click();
   await expect(sales.page.getByRole('heading', { name: title })).toBeVisible();
   const promotionHash = new URL(sales.page.url()).hash;

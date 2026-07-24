@@ -2,33 +2,24 @@ import { getEnv, requireEnv } from '../env.ts';
 import { HttpError } from '../errors.ts';
 
 export type SheetChannelItemInput = {
-  accountName: string;
-  accountUrl: string;
+  accountName?: string;
+  accountUrl?: string;
   active: boolean;
-  handle: string;
-  notes: string;
-  ownershipType: 'SENTIENT_OWNED' | 'CLIENT_OWNED' | 'EXTERNAL_PARTNER';
-  partnerName: string;
-  platform: 'INSTAGRAM' | 'X' | 'LINKEDIN';
+  displayName?: string;
+  handle?: string;
+  notes?: string;
+  ownershipType?: 'SENTIENT_OWNED' | 'CLIENT_OWNED' | 'EXTERNAL_PARTNER';
+  partnerName?: string;
+  platform?: 'INSTAGRAM' | 'X' | 'LINKEDIN';
+  rowValues: string[];
 };
 
 export type SheetChannelItem = SheetChannelItemInput & {
   crmItemId: string;
+  headers: string[];
   rowNumber: number;
   raw: Record<string, string>;
 };
-
-const requiredHeaders = [
-  'crm_item_id',
-  'platform',
-  'account_name',
-  'handle',
-  'account_url',
-  'ownership_type',
-  'partner_name',
-  'active',
-  'notes',
-] as const;
 
 const headerAliases: Record<string, string> = {
   account: 'account_name',
@@ -51,6 +42,8 @@ const headerAliases: Record<string, string> = {
   platform: 'platform',
   url: 'account_url',
 };
+
+const optionalHeaders = new Set(Object.values(headerAliases));
 
 function base64Url(input: Uint8Array | string) {
   const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
@@ -131,35 +124,38 @@ function parseBoolean(value: string) {
   return !['false', 'no', '0', 'inactive', 'off'].includes(value.trim().toLowerCase());
 }
 
-function normalizePlatform(value: string): SheetChannelItemInput['platform'] {
+function normalizePlatform(value: string): SheetChannelItemInput['platform'] | undefined {
   const normalized = value.trim().toUpperCase();
+  if (!normalized) return undefined;
   if (normalized === 'TWITTER') return 'X';
   if (['INSTAGRAM', 'X', 'LINKEDIN'].includes(normalized)) {
     return normalized as SheetChannelItemInput['platform'];
   }
-  throw new HttpError(400, 'SHEET_PLATFORM_INVALID', `Unsupported platform '${value}'.`);
+  return undefined;
 }
 
-function normalizeOwnership(value: string): SheetChannelItemInput['ownershipType'] {
+function normalizeOwnership(value: string): SheetChannelItemInput['ownershipType'] | undefined {
   const normalized = value
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '_');
-  if (!normalized) return 'SENTIENT_OWNED';
+  if (!normalized) return undefined;
   if (['SENTIENT_OWNED', 'CLIENT_OWNED', 'EXTERNAL_PARTNER'].includes(normalized)) {
     return normalized as SheetChannelItemInput['ownershipType'];
   }
-  throw new HttpError(400, 'SHEET_OWNERSHIP_INVALID', `Unsupported ownership '${value}'.`);
+  return undefined;
 }
 
-function mustLink(value: string) {
+function optionalLink(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
   try {
-    const url = new URL(value);
-    if (url.protocol === 'http:' || url.protocol === 'https:') return value;
+    const url = new URL(trimmed);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return trimmed;
   } catch {
-    // handled below
+    return '';
   }
-  throw new HttpError(400, 'SHEET_ACCOUNT_URL_INVALID', 'Every row needs a valid account URL.');
+  return '';
 }
 
 export function parseGoogleSheetUrl(sheetUrl: string) {
@@ -251,9 +247,7 @@ function indexHeaders(headers: string[]) {
   headers.forEach((header, index) => {
     const normalized = normalizeHeader(header);
     const canonical = headerAliases[normalized] ?? normalized;
-    if (requiredHeaders.includes(canonical as (typeof requiredHeaders)[number])) {
-      indexes.set(canonical, index);
-    }
+    if (optionalHeaders.has(canonical)) indexes.set(canonical, index);
   });
   return indexes;
 }
@@ -264,83 +258,50 @@ function rowValue(row: string[], indexes: Map<string, number>, key: string) {
 }
 
 export function parseSheetChannelRows(values: string[][]) {
-  const headers = values[0] ?? [];
-  const indexes = indexHeaders(headers);
-  const missing = requiredHeaders.filter((header) => !indexes.has(header));
-  if (missing.length) {
-    throw new HttpError(
-      400,
-      'SHEET_HEADERS_INVALID',
-      `Missing Sheet column${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}.`,
-    );
+  const rawHeaders = values[0] ?? [];
+  if (!rawHeaders.some((header) => String(header ?? '').trim())) {
+    throw new HttpError(400, 'SHEET_HEADERS_INVALID', 'The Sheet needs a header row.');
   }
+  const headers = rawHeaders.map((header, index) => {
+    const trimmed = String(header ?? '').trim();
+    return trimmed || `Column ${index + 1}`;
+  });
+  const indexes = indexHeaders(headers);
   const items: SheetChannelItem[] = [];
   const missingIds: Array<{ rowNumber: number; value: string }> = [];
   for (let offset = 1; offset < values.length; offset += 1) {
     const row = values[offset] ?? [];
     if (row.every((cell) => !String(cell ?? '').trim())) continue;
     const rowNumber = offset + 1;
-    const crmItemId = rowValue(row, indexes, 'crm_item_id') || crypto.randomUUID();
+    const rowValues = Array.from({ length: headers.length }, (_, index) =>
+      String(row[index] ?? '').trim(),
+    );
+    const visibleValues = rowValues.filter(Boolean);
+    const displayName = visibleValues.slice(0, 3).join(' · ') || `Row ${rowNumber}`;
+    const crmItemId = rowValue(row, indexes, 'crm_item_id') || `row-${rowNumber}`;
     if (!rowValue(row, indexes, 'crm_item_id')) missingIds.push({ rowNumber, value: crmItemId });
+    const accountName = rowValue(row, indexes, 'account_name') || displayName;
+    const handle = rowValue(row, indexes, 'handle') || displayName;
+    const notes = rowValue(row, indexes, 'notes');
+    const platform = normalizePlatform(rowValue(row, indexes, 'platform'));
+    const ownershipType = normalizeOwnership(rowValue(row, indexes, 'ownership_type'));
     const item: SheetChannelItem = {
-      accountName: rowValue(row, indexes, 'account_name'),
-      accountUrl: mustLink(rowValue(row, indexes, 'account_url')),
-      active: parseBoolean(rowValue(row, indexes, 'active')),
+      accountName,
+      accountUrl: optionalLink(rowValue(row, indexes, 'account_url')),
+      active: indexes.has('active') ? parseBoolean(rowValue(row, indexes, 'active')) : true,
       crmItemId,
-      handle: rowValue(row, indexes, 'handle'),
-      notes: rowValue(row, indexes, 'notes'),
-      ownershipType: normalizeOwnership(rowValue(row, indexes, 'ownership_type')),
+      displayName,
+      handle,
+      headers,
+      notes,
+      ownershipType,
       partnerName: rowValue(row, indexes, 'partner_name'),
-      platform: normalizePlatform(rowValue(row, indexes, 'platform')),
-      raw: Object.fromEntries(headers.map((header, index) => [header, String(row[index] ?? '')])),
+      platform,
+      raw: Object.fromEntries(headers.map((header, index) => [header, rowValues[index] ?? ''])),
       rowNumber,
+      rowValues,
     };
-    if (!item.accountName || !item.handle) {
-      throw new HttpError(
-        400,
-        'SHEET_ROW_INVALID',
-        `Row ${rowNumber} is missing account name or handle.`,
-      );
-    }
     items.push(item);
   }
   return { headers, indexes, items, missingIds };
-}
-
-export function sheetRowValues(item: SheetChannelItemInput & { crmItemId: string }) {
-  return [
-    item.crmItemId,
-    item.platform,
-    item.accountName,
-    item.handle,
-    item.accountUrl,
-    item.ownershipType,
-    item.partnerName,
-    item.active ? 'TRUE' : 'FALSE',
-    item.notes,
-  ];
-}
-
-export function sheetRowValuesForHeaders(
-  headers: string[],
-  indexes: Map<string, number>,
-  item: SheetChannelItemInput & { crmItemId: string },
-) {
-  const values = Array.from({ length: headers.length }, () => '');
-  const byKey: Record<string, string> = {
-    account_name: item.accountName,
-    account_url: item.accountUrl,
-    active: item.active ? 'TRUE' : 'FALSE',
-    crm_item_id: item.crmItemId,
-    handle: item.handle,
-    notes: item.notes,
-    ownership_type: item.ownershipType,
-    partner_name: item.partnerName,
-    platform: item.platform,
-  };
-  for (const [key, value] of Object.entries(byKey)) {
-    const index = indexes.get(key);
-    if (index !== undefined) values[index] = value;
-  }
-  return values;
 }

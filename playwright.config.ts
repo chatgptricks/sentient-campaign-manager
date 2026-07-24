@@ -37,6 +37,7 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH',
+      VITE_E2E_SKIP_GOOGLE_SHEET_SYNC: runtimeEnv.VITE_E2E_SKIP_GOOGLE_SHEET_SYNC ?? 'false',
     },
   },
   projects: [

@@ -74,14 +74,17 @@ export interface PromotionChannelSheetItem {
   sheetId: string;
   rowNumber: number;
   crmItemId: string;
-  platform: PublishingChannel;
+  platform: PublishingChannel | null;
   accountName: string;
   handle: string;
-  accountUrl: string;
+  accountUrl: string | null;
+  displayName: string;
+  headers: string[];
   ownershipType: PublishingAccountOwnership;
   partnerName: string | null;
   active: boolean;
   notes: string | null;
+  rowValues: string[];
 }
 
 export type PromotionAction =

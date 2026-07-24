@@ -133,7 +133,7 @@ Optional integrations use server-side secrets only:
 - `INTERNAL_FUNCTION_SECRET`
 - `RESEND_API_KEY` and `EMAIL_FROM`
 - `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID`
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` for editable Google Sheet channel checklists. Share each source Sheet with the service account email. Required columns are `crm_item_id`, `platform`, `account_name`, `handle`, `account_url`, `ownership_type`, `partner_name`, `active`, and `notes`.
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` for editable Google Sheet channel checklists. Share each source Sheet with the service account email. The first Sheet row is used as the editable table header; any columns are accepted. Optional columns like `platform`, `handle`, `active`, and `notes` improve labels and status detection but are not required.
 - `WEBHOOK_SECRET_<PROVIDER>` for each inbound provider
 
 When these are absent, the corresponding adapter truthfully reports manual or not configured mode.

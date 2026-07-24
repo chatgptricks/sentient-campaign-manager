@@ -56,6 +56,11 @@ function numberValue(value: unknown, fallback = 0) {
   return typeof value === 'number' ? value : fallback;
 }
 
+function stringList(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? ''));
+}
+
 function relation(value: unknown) {
   if (Array.isArray(value)) return asRow(value[0]);
   return asRow(value);
@@ -172,15 +177,23 @@ function mapPromotionChannelSheet(raw: unknown): PromotionChannelSheet {
 
 function mapPromotionChannelSheetItem(raw: unknown): PromotionChannelSheetItem {
   const row = asRow(raw);
+  const rowNumber = numberValue(row.row_number);
+  const displayName =
+    textValue(row.display_name) ||
+    textValue(row.account_name) ||
+    textValue(row.handle) ||
+    `Row ${rowNumber}`;
   return {
     id: textValue(row.id),
     sheetId: textValue(row.sheet_id),
-    rowNumber: numberValue(row.row_number),
+    rowNumber,
     crmItemId: textValue(row.crm_item_id),
-    platform: textValue(row.platform, 'INSTAGRAM') as PromotionChannelSheetItem['platform'],
-    accountName: textValue(row.account_name),
-    handle: textValue(row.handle),
-    accountUrl: textValue(row.account_url),
+    platform: nullableText(row.platform) as PromotionChannelSheetItem['platform'],
+    accountName: textValue(row.account_name, displayName),
+    handle: textValue(row.handle, displayName),
+    accountUrl: nullableText(row.account_url),
+    displayName,
+    headers: stringList(row.headers),
     ownershipType: textValue(
       row.ownership_type,
       'SENTIENT_OWNED',
@@ -188,6 +201,7 @@ function mapPromotionChannelSheetItem(raw: unknown): PromotionChannelSheetItem {
     partnerName: nullableText(row.partner_name),
     active: row.active !== false,
     notes: nullableText(row.notes),
+    rowValues: stringList(row.row_values),
   };
 }
 

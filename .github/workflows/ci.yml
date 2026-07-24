@@ -77,6 +77,8 @@ jobs:
         run: npx --no-install playwright install --with-deps chromium
 
       - name: Run end-to-end tests
+        env:
+          VITE_E2E_SKIP_GOOGLE_SHEET_SYNC: 'true'
         run: npm run test:e2e
 
       - name: Upload coverage report

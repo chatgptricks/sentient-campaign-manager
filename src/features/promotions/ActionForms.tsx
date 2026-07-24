@@ -531,7 +531,8 @@ export function PublicationDialog({
       publishingAccountId: sheetOptions.length ? '' : (selected?.id ?? ''),
       promotionChannelSheetItemId: selectedSheetItem?.id ?? '',
       provider: selectedSheetItem?.platform ?? selected?.platform ?? 'INSTAGRAM',
-      destination: selectedSheetItem?.handle ?? selected?.handle ?? '',
+      destination:
+        selectedSheetItem?.handle ?? selectedSheetItem?.displayName ?? selected?.handle ?? '',
       publicationUrl: '',
       externalPublicationId: '',
       artifactResourceLinkId: defaultArtifactResourceLinkId,
@@ -561,8 +562,8 @@ export function PublicationDialog({
   useEffect(() => {
     const selected = sheetOptions.find((item) => item.id === selectedSheetItemId);
     if (!selected) return;
-    form.setValue('provider', selected.platform);
-    form.setValue('destination', selected.handle);
+    form.setValue('provider', selected.platform ?? 'INSTAGRAM');
+    form.setValue('destination', selected.handle || selected.displayName);
     form.setValue('publishingAccountId', '');
   }, [form, selectedSheetItemId, sheetOptions]);
 
@@ -581,7 +582,7 @@ export function PublicationDialog({
             <Select id="publication-sheet-item" {...form.register('promotionChannelSheetItemId')}>
               {sheetOptions.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.accountName} · {item.handle}
+                  {item.displayName || item.handle || `Row ${item.rowNumber}`}
                 </option>
               ))}
             </Select>

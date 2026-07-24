@@ -55,7 +55,7 @@ import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { ConfirmDialog, type ConfirmDialogState } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { Input, Select, Textarea } from '../../components/ui/Field';
+import { Input } from '../../components/ui/Field';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { PromotionStatusBadge } from './PromotionStatusBadge';
 import {
@@ -678,6 +678,21 @@ function ApprovalSection({
   );
 }
 
+function sheetItemTitle(item: PromotionChannelSheetItem) {
+  return item.displayName || item.accountName || item.handle || `Row ${item.rowNumber}`;
+}
+
+function sheetItemSummary(item: PromotionChannelSheetItem) {
+  const pairs = item.headers
+    .map((header, index) => {
+      const value = item.rowValues[index]?.trim();
+      return value ? `${header}: ${value}` : '';
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+  return pairs.length ? pairs.join(' · ') : `Sheet row ${item.rowNumber}`;
+}
+
 function PublishingSection({
   detail,
   accounts,
@@ -712,13 +727,13 @@ function PublishingSection({
       (publication) =>
         publication.promotionChannelSheetItemId === item.id ||
         (!publication.promotionChannelSheetItemId &&
-          publication.provider === item.platform &&
-          publication.destination === item.handle),
+          publication.provider === (item.platform ?? 'SHEET') &&
+          publication.destination === (item.handle || item.displayName)),
     ),
   );
   const startEdit = (item: PromotionChannelSheetItem) => {
     setEditingItemId(item.id);
-    setDraft(item);
+    setDraft({ ...item, rowValues: [...item.rowValues] });
   };
   return (
     <div className="space-y-5">
@@ -763,81 +778,34 @@ function PublishingSection({
                 (entry) =>
                   entry.promotionChannelSheetItemId === item.id ||
                   (!entry.promotionChannelSheetItemId &&
-                    entry.provider === item.platform &&
-                    entry.destination === item.handle),
+                    entry.provider === (item.platform ?? 'SHEET') &&
+                    entry.destination === (item.handle || item.displayName)),
               );
               const editing = editingItemId === item.id;
+              const draftValues = draft.rowValues ?? item.rowValues;
               return (
                 <div key={item.id} className="px-5 py-4">
                   {editing ? (
                     <div className="grid gap-3">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <Select
-                          value={draft.platform ?? item.platform}
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              platform: event.target.value as PromotionChannelSheetItem['platform'],
-                            }))
-                          }
-                        >
-                          <option value="INSTAGRAM">Instagram</option>
-                          <option value="X">X</option>
-                          <option value="LINKEDIN">LinkedIn</option>
-                        </Select>
-                        <Input
-                          value={draft.accountName ?? item.accountName}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, accountName: event.target.value }))
-                          }
-                        />
-                        <Input
-                          value={draft.handle ?? item.handle}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, handle: event.target.value }))
-                          }
-                        />
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {item.headers.map((header, index) => (
+                          <label key={`${item.id}-${header}-${index}`} className="grid gap-1">
+                            <span className="text-xs font-semibold text-[var(--text-muted)]">
+                              {header}
+                            </span>
+                            <Input
+                              value={draftValues[index] ?? ''}
+                              onChange={(event) =>
+                                setDraft((current) => {
+                                  const nextValues = [...(current.rowValues ?? item.rowValues)];
+                                  nextValues[index] = event.target.value;
+                                  return { ...current, rowValues: nextValues };
+                                })
+                              }
+                            />
+                          </label>
+                        ))}
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
-                        <Input
-                          type="url"
-                          value={draft.accountUrl ?? item.accountUrl}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, accountUrl: event.target.value }))
-                          }
-                        />
-                        <Select
-                          value={draft.ownershipType ?? item.ownershipType}
-                          onChange={(event) =>
-                            setDraft((current) => ({
-                              ...current,
-                              ownershipType: event.target
-                                .value as PromotionChannelSheetItem['ownershipType'],
-                            }))
-                          }
-                        >
-                          <option value="SENTIENT_OWNED">Sentient-owned</option>
-                          <option value="CLIENT_OWNED">Client-owned</option>
-                          <option value="EXTERNAL_PARTNER">External partner</option>
-                        </Select>
-                      </div>
-                      <Textarea
-                        value={draft.notes ?? item.notes ?? ''}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, notes: event.target.value }))
-                        }
-                      />
-                      <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-[var(--acid)]"
-                          checked={draft.active ?? item.active}
-                          onChange={(event) =>
-                            setDraft((current) => ({ ...current, active: event.target.checked }))
-                          }
-                        />
-                        Active
-                      </label>
                       <div className="flex justify-end gap-2">
                         <Button
                           type="button"
@@ -849,7 +817,11 @@ function PublishingSection({
                         <Button
                           type="button"
                           onClick={() => {
-                            onUpdateSheetItem(item.id, draft);
+                            onUpdateSheetItem(item.id, {
+                              ...draft,
+                              headers: item.headers,
+                              rowValues: draftValues,
+                            });
                             setEditingItemId(null);
                           }}
                         >
@@ -867,11 +839,11 @@ function PublishingSection({
                         </span>
                         <div>
                           <p className="text-sm font-semibold text-[var(--text)]">
-                            {item.accountName}
+                            {sheetItemTitle(item)}
                           </p>
                           <p className="mt-1 text-xs text-[var(--text-dim)]">
-                            {publishingChannelLabel[item.platform]} · {item.handle} ·{' '}
-                            {item.ownershipType.replaceAll('_', ' ')}
+                            {item.platform ? `${publishingChannelLabel[item.platform]} · ` : ''}
+                            {sheetItemSummary(item)}
                             {item.active ? '' : ' · inactive'}
                           </p>
                         </div>

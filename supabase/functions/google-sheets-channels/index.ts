@@ -8,7 +8,6 @@ import {
   GoogleSheetsClient,
   parseGoogleSheetUrl,
   parseSheetChannelRows,
-  sheetRowValuesForHeaders,
   sheetTitleFor,
   type SheetChannelItemInput,
 } from '../_shared/services/google-sheets.ts';
@@ -23,7 +22,7 @@ type SyncBody = {
 
 type UpdateItemBody = {
   action: 'update_item';
-  item?: Partial<SheetChannelItemInput>;
+  item?: Partial<SheetChannelItemInput> & { headers?: string[]; rowValues?: string[] };
   itemId?: string;
   item_id?: string;
 };
@@ -52,6 +51,10 @@ function cellName(columnIndex: number, rowNumber: number) {
   return `${label}${rowNumber}`;
 }
 
+function syncRange(sheetName: string, headersLength: number, rowNumber: number) {
+  return `'${sheetName}'!A${rowNumber}:${cellName(Math.max(headersLength - 1, 0), rowNumber)}`;
+}
+
 async function requireCanManagePromotion(request: Request, promotionId: string) {
   const client = serviceClient();
   const auth = await authenticateUser(request, client);
@@ -74,40 +77,47 @@ async function requireCanManagePromotion(request: Request, promotionId: string) 
 
 function normalizeItem(input: Partial<SheetChannelItemInput> | undefined): SheetChannelItemInput {
   if (!input) throw new HttpError(400, 'SHEET_ITEM_REQUIRED', 'Sheet row data is required.');
-  const platform = String(input.platform ?? '')
+  const platformInput = String(input.platform ?? '')
     .trim()
     .toUpperCase();
   const ownershipType = String(input.ownershipType ?? 'SENTIENT_OWNED')
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '_');
-  if (!['INSTAGRAM', 'X', 'LINKEDIN'].includes(platform)) {
+  const platform = ['INSTAGRAM', 'X', 'LINKEDIN'].includes(platformInput)
+    ? (platformInput as SheetChannelItemInput['platform'])
+    : undefined;
+  if (input.platform && !platform) {
     throw new HttpError(400, 'SHEET_PLATFORM_INVALID', 'Choose Instagram, X, or LinkedIn.');
   }
   if (!['SENTIENT_OWNED', 'CLIENT_OWNED', 'EXTERNAL_PARTNER'].includes(ownershipType)) {
     throw new HttpError(400, 'SHEET_OWNERSHIP_INVALID', 'Choose a valid ownership type.');
   }
-  const accountName = String(input.accountName ?? '').trim();
-  const handle = String(input.handle ?? '').trim();
+  const rowValues = Array.isArray(input.rowValues)
+    ? input.rowValues.map((value) => String(value ?? '').trim())
+    : [];
+  const accountName = String(input.accountName ?? input.displayName ?? '').trim();
+  const handle = String(input.handle ?? input.displayName ?? '').trim();
   const accountUrl = String(input.accountUrl ?? '').trim();
-  if (!accountName || !handle || !accountUrl) {
-    throw new HttpError(400, 'SHEET_ITEM_INVALID', 'Account name, handle, and URL are required.');
-  }
-  try {
-    const url = new URL(accountUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('invalid');
-  } catch {
-    throw new HttpError(400, 'SHEET_ACCOUNT_URL_INVALID', 'Account URL must be a valid link.');
+  if (accountUrl) {
+    try {
+      const url = new URL(accountUrl);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('invalid');
+    } catch {
+      throw new HttpError(400, 'SHEET_ACCOUNT_URL_INVALID', 'Account URL must be a valid link.');
+    }
   }
   return {
     accountName,
     accountUrl,
     active: input.active !== false,
+    displayName: String(input.displayName ?? accountName ?? handle ?? '').trim(),
     handle,
     notes: String(input.notes ?? '').trim(),
     ownershipType: ownershipType as SheetChannelItemInput['ownershipType'],
     partnerName: String(input.partnerName ?? '').trim(),
-    platform: platform as SheetChannelItemInput['platform'],
+    platform,
+    rowValues,
   };
 }
 
@@ -126,15 +136,14 @@ async function syncSheet(request: Request, body: SyncBody) {
   const parsedRows = parseSheetChannelRows(values.values ?? []);
 
   const idColumn = parsedRows.indexes.get('crm_item_id');
-  if (idColumn === undefined) {
-    throw new HttpError(400, 'SHEET_HEADERS_INVALID', 'Missing crm_item_id column.');
-  }
-  for (const missing of parsedRows.missingIds) {
-    await sheets.updateValues(
-      parsed.spreadsheetId,
-      `'${sheetName}'!${cellName(idColumn, missing.rowNumber)}`,
-      [[missing.value]],
-    );
+  if (idColumn !== undefined) {
+    for (const missing of parsedRows.missingIds) {
+      await sheets.updateValues(
+        parsed.spreadsheetId,
+        `'${sheetName}'!${cellName(idColumn, missing.rowNumber)}`,
+        [[missing.value]],
+      );
+    }
   }
 
   const { data: sheet, error: sheetError } = await client
@@ -165,13 +174,16 @@ async function syncSheet(request: Request, body: SyncBody) {
         account_url: item.accountUrl,
         active: item.active,
         crm_item_id: item.crmItemId,
+        display_name: item.displayName,
         handle: item.handle,
+        headers: item.headers,
         notes: item.notes || null,
-        ownership_type: item.ownershipType,
+        ownership_type: item.ownershipType ?? 'SENTIENT_OWNED',
         partner_name: item.partnerName || null,
         platform: item.platform,
         raw_json: item.raw,
         row_number: item.rowNumber,
+        row_values: item.rowValues,
         sheet_id: sheet.id,
       },
       { onConflict: 'sheet_id,crm_item_id' },
@@ -220,42 +232,58 @@ async function updateItem(request: Request, body: UpdateItemBody) {
   await requireCanManagePromotion(request, sheet.promotion_id);
 
   const current = {
-    accountName: existing.account_name,
-    accountUrl: existing.account_url,
+    accountName: existing.account_name ?? '',
+    accountUrl: existing.account_url ?? '',
     active: existing.active,
-    handle: existing.handle,
+    displayName: existing.display_name ?? '',
+    handle: existing.handle ?? '',
     notes: existing.notes ?? '',
-    ownershipType: existing.ownership_type,
+    ownershipType: existing.ownership_type ?? 'SENTIENT_OWNED',
     partnerName: existing.partner_name ?? '',
-    platform: existing.platform,
+    platform: existing.platform ?? undefined,
+    rowValues: Array.isArray(existing.row_values) ? existing.row_values : [],
   };
   const next = normalizeItem({ ...current, ...body.item });
   const sheets = new GoogleSheetsClient();
   const values = await sheets.values(sheet.spreadsheet_id, `'${sheet.sheet_name}'!A:Z`);
   const parsedRows = parseSheetChannelRows(values.values ?? []);
+  const headers = parsedRows.headers.length
+    ? parsedRows.headers
+    : Array.isArray(existing.headers)
+      ? existing.headers
+      : [];
+  const rowValues = Array.from(
+    { length: headers.length },
+    (_, index) => next.rowValues[index] ?? '',
+  );
+  const crmItemIdIndex = parsedRows.indexes.get('crm_item_id');
+  if (crmItemIdIndex !== undefined) rowValues[crmItemIdIndex] = existing.crm_item_id;
   await sheets.updateValues(
     sheet.spreadsheet_id,
-    `'${sheet.sheet_name}'!A${existing.row_number}:${cellName(parsedRows.headers.length - 1, existing.row_number)}`,
-    [
-      sheetRowValuesForHeaders(parsedRows.headers, parsedRows.indexes, {
-        ...next,
-        crmItemId: existing.crm_item_id,
-      }),
-    ],
+    syncRange(sheet.sheet_name, headers.length, existing.row_number),
+    [rowValues],
   );
+  const refreshed = parseSheetChannelRows([headers, rowValues]);
+  const refreshedItem = refreshed.items[0];
+  if (!refreshedItem) {
+    throw new HttpError(400, 'SHEET_ROW_EMPTY', 'Sheet row cannot be empty.');
+  }
 
   const { data: updated, error: updateError } = await client
     .from('promotion_channel_sheet_items')
     .update({
-      account_name: next.accountName,
-      account_url: next.accountUrl,
-      active: next.active,
-      handle: next.handle,
-      notes: next.notes || null,
-      ownership_type: next.ownershipType,
-      partner_name: next.partnerName || null,
-      platform: next.platform,
-      raw_json: { ...existing.raw_json, ...next },
+      account_name: refreshedItem.accountName,
+      account_url: refreshedItem.accountUrl || null,
+      active: refreshedItem.active,
+      display_name: refreshedItem.displayName,
+      handle: refreshedItem.handle,
+      headers,
+      notes: refreshedItem.notes || null,
+      ownership_type: refreshedItem.ownershipType ?? 'SENTIENT_OWNED',
+      partner_name: refreshedItem.partnerName || null,
+      platform: refreshedItem.platform,
+      raw_json: refreshedItem.raw,
+      row_values: rowValues,
     })
     .eq('id', itemId)
     .select('*')
@@ -282,16 +310,18 @@ async function appendItem(request: Request, body: AppendItemBody) {
   const sheets = new GoogleSheetsClient();
   const values = await sheets.values(sheet.spreadsheet_id, `'${sheet.sheet_name}'!A:Z`);
   const parsedBeforeAppend = parseSheetChannelRows(values.values ?? []);
-  await sheets.appendValues(sheet.spreadsheet_id, `'${sheet.sheet_name}'!A:Z`, [
-    sheetRowValuesForHeaders(parsedBeforeAppend.headers, parsedBeforeAppend.indexes, {
-      ...next,
-      crmItemId,
-    }),
-  ]);
+  const rowValues = Array.from(
+    { length: parsedBeforeAppend.headers.length },
+    (_, index) => next.rowValues[index] ?? '',
+  );
+  const crmItemIdIndex = parsedBeforeAppend.indexes.get('crm_item_id');
+  if (crmItemIdIndex !== undefined) rowValues[crmItemIdIndex] = crmItemId;
+  await sheets.appendValues(sheet.spreadsheet_id, `'${sheet.sheet_name}'!A:Z`, [rowValues]);
 
   const refreshed = await sheets.values(sheet.spreadsheet_id, `'${sheet.sheet_name}'!A:Z`);
   const parsedRows = parseSheetChannelRows(refreshed.values ?? []);
-  const appended = parsedRows.items.find((item) => item.crmItemId === crmItemId);
+  const appended =
+    parsedRows.items.find((item) => item.crmItemId === crmItemId) ?? parsedRows.items.at(-1);
   if (!appended)
     throw new HttpError(
       502,
@@ -307,13 +337,16 @@ async function appendItem(request: Request, body: AppendItemBody) {
         account_url: appended.accountUrl,
         active: appended.active,
         crm_item_id: appended.crmItemId,
+        display_name: appended.displayName,
         handle: appended.handle,
+        headers: appended.headers,
         notes: appended.notes || null,
-        ownership_type: appended.ownershipType,
+        ownership_type: appended.ownershipType ?? 'SENTIENT_OWNED',
         partner_name: appended.partnerName || null,
         platform: appended.platform,
         raw_json: appended.raw,
         row_number: appended.rowNumber,
+        row_values: appended.rowValues,
         sheet_id: sheet.id,
       },
       { onConflict: 'sheet_id,crm_item_id' },
