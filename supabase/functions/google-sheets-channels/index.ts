@@ -171,7 +171,7 @@ async function syncSheet(request: Request, body: SyncBody) {
     const { error } = await client.from('promotion_channel_sheet_items').upsert(
       {
         account_name: item.accountName,
-        account_url: item.accountUrl,
+        account_url: item.accountUrl || null,
         active: item.active,
         crm_item_id: item.crmItemId,
         display_name: item.displayName,
@@ -334,7 +334,7 @@ async function appendItem(request: Request, body: AppendItemBody) {
     .upsert(
       {
         account_name: appended.accountName,
-        account_url: appended.accountUrl,
+        account_url: appended.accountUrl || null,
         active: appended.active,
         crm_item_id: appended.crmItemId,
         display_name: appended.displayName,
